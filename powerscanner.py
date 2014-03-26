@@ -6,6 +6,7 @@ import sys
 from struct import *
 import sys
 import os
+from arprequest import ArpRequest
 
 
 __author__ = 'jossef'
@@ -24,15 +25,61 @@ def checksum(msg):
     return s
 
 
+def send_arp(src_ip, dst_ip, sender_mac):
+    #if_ipaddr = socket.gethostbyname(socket.gethostname())
+    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
+    sock.bind((src_ip, socket.SOCK_RAW))
+
+    sender_mac = sender_mac.replace(':', '').decode('hex')
+    bcast_mac = pack('!6B', *(0xFF,) * 6)
+    zero_mac = pack('!6B', *(0x00,) * 6)
+
+    ARPOP_REQUEST = pack('!H', 0x0001)
+    target_mac = zero_mac
+    arpop = ARPOP_REQUEST
+    sender_ip = pack('!4B', *[int(x) for x in src_ip.split('.')])
+    target_ip = pack('!4B', *[int(x) for x in dst_ip.split('.')])
+
+    arpframe = [
+        ### ETHERNET
+        # destination MAC addr
+        bcast_mac,
+        # source MAC addr
+        sender_mac,
+        # protocol type (=ARP)
+        pack('!H', 0x0806),
+
+        ### ARP
+        # logical protocol type (Ethernet/IP)
+        pack('!HHBB', 0x0001, 0x0800, 0x0006, 0x0004),
+        # operation type
+        arpop,
+        # sender MAC addr
+        sender_mac,
+        # sender IP addr
+        sender_ip,
+        # target hardware addr
+        target_mac,
+        # target IP addr
+        target_ip
+    ]
+
+    # send the ARP
+    sock.send(''.join(arpframe))
+
+    return True
+
+
 def get_most_suitable_interface(ip):
     interfaces = socket.gethostbyname_ex(socket.gethostname())
     # Send arp to all interfaces
 
 
 def getHwAddr(ifname):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', ifname[:15]))
-    return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
+    #s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', ifname[:15]))
+    #return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
+    pass
 
 
 def scan_tcp_port(ip_address, port):
@@ -191,6 +238,14 @@ def get_interfaces_info():
 
 
 def main():
+    interfaces = get_interfaces_info()
+
+    for interface in interfaces:
+        ar = ArpRequest('8.8.8.8', interface['ip'])
+        print ar.request()
+
+
+    aprreq = ArpRequest()
 
     return 0
 
@@ -260,6 +315,8 @@ def main():
         ports = list(set(ports))
 
         print ports
+
+
 
     except Exception as ex:
         print 'Arguments parse error: {0}'.format(ex)
