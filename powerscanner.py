@@ -1,251 +1,236 @@
 import argparse
 import re
-import socket
+import struct
 import uuid
 import sys
 from struct import *
 import sys
 import os
-from arprequest import ArpRequest
+import array
+import fcntl
 
+import socket
+import fcntl
+import struct
+import array
+
+from ping import *
+from multiprocessing.pool import ThreadPool
+from banner_helper import *
 
 __author__ = 'jossef'
 
 
-# checksum functions needed for calculation checksum
-def checksum(msg):
-    s = 0
-    # loop taking 2 characters at a time
-    for i in range(0, len(msg), 2):
-        w = (ord(msg[i]) << 8) + (ord(msg[i + 1]) )
-        s = s + w
 
-    s = (s >> 16) + (s & 0xffff);
-    s = ~s & 0xffff
-    return s
+# Thanks to https://gist.github.com/pklaus/289646 for the snippet
+# added yield
+def all_interfaces():
+    max_possible = 128  # arbitrary. raise if needed.
+    bytes = max_possible * 32
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    names = array.array('B', '\0' * bytes)
+    outbytes = struct.unpack('iL', fcntl.ioctl(
+        s.fileno(),
+        0x8912,  # SIOCGIFCONF
+        struct.pack('iL', bytes, names.buffer_info()[0])
+    ))[0]
 
+    namestr = names.tostring()
 
-def send_arp(src_ip, dst_ip, sender_mac):
-    #if_ipaddr = socket.gethostbyname(socket.gethostname())
-    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
-    sock.bind((src_ip, socket.SOCK_RAW))
-
-    sender_mac = sender_mac.replace(':', '').decode('hex')
-    bcast_mac = pack('!6B', *(0xFF,) * 6)
-    zero_mac = pack('!6B', *(0x00,) * 6)
-
-    ARPOP_REQUEST = pack('!H', 0x0001)
-    target_mac = zero_mac
-    arpop = ARPOP_REQUEST
-    sender_ip = pack('!4B', *[int(x) for x in src_ip.split('.')])
-    target_ip = pack('!4B', *[int(x) for x in dst_ip.split('.')])
-
-    arpframe = [
-        ### ETHERNET
-        # destination MAC addr
-        bcast_mac,
-        # source MAC addr
-        sender_mac,
-        # protocol type (=ARP)
-        pack('!H', 0x0806),
-
-        ### ARP
-        # logical protocol type (Ethernet/IP)
-        pack('!HHBB', 0x0001, 0x0800, 0x0006, 0x0004),
-        # operation type
-        arpop,
-        # sender MAC addr
-        sender_mac,
-        # sender IP addr
-        sender_ip,
-        # target hardware addr
-        target_mac,
-        # target IP addr
-        target_ip
-    ]
-
-    # send the ARP
-    sock.send(''.join(arpframe))
-
-    return True
+    for i in range(0, outbytes, 40):
+        response = dict()
+        response['name'] = namestr[i:i + 16].split('\0', 1)[0]
+        response['hex_ip'] = namestr[i + 20:i + 24]
+        response['ip'] = str(format_ip(namestr[i + 20:i + 24]))
+        yield response
 
 
-def get_most_suitable_interface(ip):
-    interfaces = socket.gethostbyname_ex(socket.gethostname())
-    # Send arp to all interfaces
+def format_ip(addr):
+    return str(ord(addr[0])) + '.' + \
+           str(ord(addr[1])) + '.' + \
+           str(ord(addr[2])) + '.' + \
+           str(ord(addr[3]))
 
 
-def getHwAddr(ifname):
-    #s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', ifname[:15]))
-    #return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
-    pass
+def socket_connect(socket, address, port, timeout=5):
+    socket.settimeout(timeout)
+    socket.connect((address, port))
+    socket.settimeout(None)
 
 
-def scan_tcp_port(ip_address, port):
-    #create a raw socket
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+def socket_recieve(socket, timeout=5, buffer_size=4096):
+    socket.setblocking(0)
 
-    # tell kernel not to put in headers, since we are providing it
-    my_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    ready = select.select([socket], [], [], timeout)
 
+    if not ready[0]:
+        raise Exception('timeout')
 
-    # now start constructing the packet
-    packet = '';
-
-    # get the source ip from
-    source_ip = '192.168.1.101'
-    dest_ip = ip_address  # or socket.gethostbyname('www.google.com')
-
-    # ip header fields
-    ihl = 5
-    version = 4
-    tos = 0
-    tot_len = 20 + 20  # python seems to correctly fill the total length, dont know how ??
-    id = 54321  #Id of this packet
-    frag_off = 0
-    ttl = 255
-    protocol = socket.IPPROTO_TCP
-    check = 10  # python seems to correctly fill the checksum
-    saddr = socket.inet_aton(source_ip)  #Spoof the source ip address if you want to
-    daddr = socket.inet_aton(dest_ip)
-
-    ihl_version = (version << 4) + ihl
-
-    # the ! in the pack format string means network order
-    ip_header = pack('!BBHHHBBH4s4s', ihl_version, tos, tot_len, id, frag_off, ttl, protocol, check, saddr, daddr)
-
-    # tcp header fields
-    source = 1234  # source port
-    dest = 80  # destination port
-    seq = 0
-    ack_seq = 0
-
-    doff = 5  #4 bit field, size of tcp header, 5 * 4 = 20 bytes
-    offset_res = (doff << 4) + 0
-
-    window = socket.htons(5840)  #   maximum allowed window size
-    check = 0
-    urg_ptr = 0
-
-    # -- -- -- == -- -- --
-    # Construct TCP flags
-
-    fin = 0
-    syn = 1
-    rst = 0
-    psh = 0
-    ack = 0
-    urg = 0
-    tcp_flags = fin + (syn << 1) + (rst << 2) + (psh << 3) + (ack << 4) + (urg << 5)
-
-    # the ! in the pack format string means network order
-    tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, check, urg_ptr)
-
-    # pseudo header fields
-    source_address = socket.inet_aton(source_ip)
-    dest_address = socket.inet_aton(dest_ip)
-    placeholder = 0
-    protocol = socket.IPPROTO_TCP
-    tcp_length = len(tcp_header)
-
-    psh = pack('!4s4sBBH', source_address, dest_address, placeholder, protocol, tcp_length);
-    psh = psh + tcp_header;
-
-    tcp_checksum = checksum(psh)
-
-    # make the tcp header again and fill the correct checksum
-    tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, tcp_checksum, urg_ptr)
-
-    # final full packet - syn packets dont have any data
-    packet = ip_header + tcp_header
-
-    #Send the packet finally - the port specified has no effect
-    my_socket.sendto(packet, (dest_ip, 0 ))  # put this in a loop if you want to flood the target
-
-    #put the above line in a loop like while 1: if you want to flood
+    data = socket.recv(buffer_size)
+    return data
 
 
-def get_interfaces_info():
-    """
-    Due to lack of support in a good, cross platform solution for retrieval of network interfaces info (mac ip subnet),
-    this helper function written.
+def smtp_banner_grabber(address, port):
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket_connect(sock, address, port)
+        banner = socket_recieve(sock)
 
-        we could use netifaces (http://alastairs-place.net/projects/netifaces/) library
-        the reason we did not used it is because it requires installation, which is not allowed by michael
+        operating_system = None
+        server = None
 
-    the function simply uses popen and launch ipconfig (on windows) or ifconfig (on linux) and parses the output
-    """
-    # Windows
-    ip = None
-    mac = None
-    subnet = None
+        # Lets scrape for any hints
+        banner_lines = banner.split('\n')
+        banner_lines = [item.strip() for item in banner_lines]
 
-    if sys.platform == 'win32':
+        for banner_line in banner_lines:
+            server, operating_system = BannerHelper.get_smtp_banner_info(banner_line)
+            if server or operating_system:
+                break
 
-        for line in os.popen("ipconfig /all"):
+        return server, operating_system, port
 
-            if ip and mac and subnet:
-                yield {'ip': ip, 'mac': mac, 'subnet': subnet}
-                ip = None
-                mac = None
-                subnet = None
 
-            # Empty line - item separator
-            if len(line.strip()) == 0:
-                ip = None
-                mac = None
-                subnet = None
-                continue
+    except Exception as ex:
+        return None, None, port
 
-            if line.lstrip().startswith('IPv4 Address'):
-                ip = line.split(':')[1].strip().replace('(Preferred)', '')
+    finally:
+        if sock:
+            sock.close()
 
-            if line.lstrip().startswith('Physical Address'):
-                mac = line.split(':')[1].strip().replace('-', ':')
+def ftp_banner_grabber(address, port):
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket_connect(sock, address, port)
+        banner = socket_recieve(sock)
 
-            if line.lstrip().startswith('Subnet Mask'):
-                subnet = line.split(':')[1].strip()
+        operating_system = None
+        server = None
 
-    # Linux
-    else:
+        # Lets scrape for any hints
+        banner_lines = banner.split('\n')
+        banner_lines = [item.strip() for item in banner_lines]
 
-        for line in os.popen("/sbin/ifconfig"):
-            if ip and mac and subnet:
-                yield {'ip': ip, 'mac': mac, 'subnet': subnet}
-                ip = None
-                mac = None
-                subnet = None
+        for banner_line in banner_lines:
+            server, operating_system = BannerHelper.get_ftp_banner_info(banner_line)
+            if server or operating_system:
+                break
 
-            # Empty line - item separator
-            if len(line.strip()) == 0:
-                ip = None
-                mac = None
-                subnet = None
-                continue
+        return server, operating_system, port
 
-            ip_offset = line.lstrip().find('inet addr')
-            if ip_offset > -1:
-                ip = line[ip_offset:].strip().split(':')[1].strip().split(' ')[0]
 
-            mac_offset = line.lstrip().find('HWaddr')
-            if mac_offset > -1:
-                mac = line[mac_offset:].strip().split(' ')[1].strip()
+    except Exception as ex:
+        return None, None, port
 
-            mask_offset = line.lstrip().find('Mask')
-            if mask_offset > -1:
-                subnet = line[mask_offset:].strip().split(':')[1].strip()
+    finally:
+        if sock:
+            sock.close()
+
+
+def http_banner_grabber(address, port):
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket_connect(sock, address, port)
+
+        sock.send("HEAD / HTTP/1.1\r\nHost: %s\r\n\r\n" % address)
+        banner = socket_recieve(sock)
+
+        operating_system = None
+        server = None
+
+        # Lets Search for the 'Server: ' instance
+        banner_lines = banner.split('\n')
+        banner_lines = [item.strip() for item in banner_lines]
+
+        server_prefix = 'server:'
+        server_line = (item for item in banner_lines if item.lower().startswith(server_prefix)).next()
+        if server_line:
+            server_line = server_line[len(server_prefix):].strip()
+
+            server, operating_system = BannerHelper.get_http_banner_info(server_line)
+
+        return server, operating_system, port
+
+    except Exception as ex:
+        return None, None, port
+
+    finally:
+        if sock:
+            sock.close()
+
+
+banner_grabbing_thread_pool = ThreadPool(processes=10)
+banner_grabbing_async_results = []
 
 
 def main():
-    interfaces = get_interfaces_info()
+    ftps = ['ftp.freshrpms.net',
+            'ftp.heanet.ie',
+            'ftp.rediris.es',
+            'ftp.tu-chemnitz.de',
+            'ftp.es.kde.org',
+            'ftp.esat.net',
+            'ftp.leo.org',
+            'ftp.mirror.nl',
+            'ftp.it.freebsd.org',
+            'ftp.gwdg.de',
+            'ftp.lublin.pl',
+            'ftp.rhnet. is',
+            'ftp.de.netbsd.org',
+            'ftp.iij.ad.jp',
+            'ftp.bv.kernel.org',
+            'ftp.ussg.iu.edu',
+            'ftp.aist-nara.ac.jp',
+            'ftp.uni-bayreuth.de',
+            'ftp.ch.freebsd.org',
+            'ftp.servage.com',
+            'ftp.swfwmd.state.fl.us',
+            'ftp.mozilla.org']
+
+    ftps =[]
+    for ftp in ftps:
+        async_result = banner_grabbing_thread_pool.apply_async(ftp_banner_grabber, (ftp, 21))
+        banner_grabbing_async_results.append(async_result)
+
+    smtps = ['smtp.gmail.com', 'smtp.live.com', 'smtp.mail.yahoo.com', 'smtp.mail.yahoo.co.uk', 'smtp.o2.ie', 'smtp.att.yahoo.com', 'smtp.ntlworld.com', 'smtp.orange.net', 'smtp.wanadoo.co.uk', 'smtp.live.com', 'smtp.1and1.com', 'outgoing.verizon.net', 'smtp.comcast.net', 'smtp.mail.com']
+
+    for smtp in smtps:
+        async_result = banner_grabbing_thread_pool.apply_async(smtp_banner_grabber, (smtp, 25))
+        banner_grabbing_async_results.append(async_result)
+
+    https = ['www.jossef.com', 'www.gmail.com', 'www.ynet.co.il', 'www.colman.ac.il']
+    https =[]
+    for http in https:
+        async_result = banner_grabbing_thread_pool.apply_async(http_banner_grabber, (http, 80))
+        banner_grabbing_async_results.append(async_result)
+
+    for banner_grabbing_async_result in banner_grabbing_async_results:
+
+        result = banner_grabbing_async_result.get()
+        if not result:
+            continue
+
+        print result
+        print '.................................... \r\n \r\n '
+
+    print 'thats it'
+
+    return
+    p = CmdlinePinger('8.8.8.8', 1)
+    p.ping()
+    summary = p.get_summary()
+
+    print summary
+
+    return
+    interfaces = all_interfaces()
 
     for interface in interfaces:
-        ar = ArpRequest('8.8.8.8', interface['ip'])
+        ar = ArpRequest('212.179.154.222', interface['name'], interface['ip'])
         print ar.request()
-
-
-    aprreq = ArpRequest()
 
     return 0
 

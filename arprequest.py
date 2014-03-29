@@ -1,165 +1,141 @@
 #!/usr/bin/env python
-#coding=utf8
-#
-# DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-# Version 2, December 2004
-#
-# Copyright (C) 2004 Sam Hocevar
-# 14 rue de Plaisance, 75014 Paris, France
-# Everyone is permitted to copy and distribute verbatim or modified
-# copies of this license document, and changing it is allowed as long
-# as the name is changed.
-#
-# DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-# TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
-#
-# 0. You just DO WHAT THE FUCK YOU WANT TO.
-#
+#By s3my0n
 
-import socket
-from struct import pack, unpack
-import signal, os
+#############################################################################
+# ftpcheck.py                                                               #
+#                                                                           #
+# Takes a list of server addresses and checks if the name of                #
+# their ftp servers match with the ftp server you are looking for.          #
+#                                                                           #
+# Copyright (C) 2009  s3my0n                                                #
+#                                                                           #
+# This program is free software: you can redistribute it and/or modify      #
+# it under the terms of the GNU General Public License as published by      #
+# the Free Software Foundation, either version 3 of the License, or         #
+# any later version.                                                        #
+#                                                                           #
+# This program is distributed in the hope that it will be useful,           #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of            #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             #
+# GNU General Public License for more details.                              #
+#                                                                           #
+# You should have received a copy of the GNU General Public License         #
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.     #    
+#############################################################################
 
-ARP_GRATUITOUS = 1
-ARP_STANDARD = 2
+from ftplib import FTP
+import re, sys
 
-def val2int(val):
-    '''Retourne une valeur sous forme d'octet en valeur sous forme 
-       d'entier.'''
+class FtpCheck(object):
+    def __init__(self, LIST, VERBOSE, BANNER):
+        self.banner = BANNER
+        self.list = LIST
+        self.verbose = VERBOSE
 
-    return int(''.join(['%02d'%ord(c) for c in val]), 16)
+        self.slist = list(s.replace('\n', '') for s in LIST)
+        for s in self.slist:
+            s.strip()
+            try:
+                self.slist.remove('')
+            except ValueError:
+                pass
+        
+    def Check(self, TIMEOUT):
+        self.matchlist = []
+        self.error = False
+        for IP in self.slist:
+            try:
+                self.ftp = FTP(IP, timeout=TIMEOUT)
+            except KeyboardInterrupt:
+                self.error = '\n [-]Aborted'
+                return
+            except:
+                if self.verbose:
+                    print '\n [-]Error connecting to [%s]' % IP
+                continue
+            self.chkbanner = self.ftp.getwelcome()
+            if re.search(self.banner, self.chkbanner):
+                self.matchlist.append(IP)
 
-class TimeoutError(Exception):
-    '''Exception levée après un timeout.'''
-    pass
+def Help():
+    usage ='''
+    #######################################
+    #                                     #
+    #  Name: ftpcheck.py                  #
+    #  Author: s3my0n                     #
+    #  Email: RuSh4ck3R[at]gmail[dot]com  #
+    #                                     #
+    #######################################
 
-def timeout(function, timeout=10):
-    '''Exécute la fonction function (référence) et stoppe son exécution
-       au bout d'un certain temps déterminé par timeout.
-       
-       Retourne None si la fonction à été arretée par le timeout, et 
-       la valeur retournée par la fonction si son exécution se 
-       termine.'''
+    Usage: ftpcheck.py [list of ftp servers] [banner]
 
-    def raise_timeout(num, frame):
-        raise TimeoutError
-    
-    # On mappe la fonction à notre signal
-    signal.signal(signal.SIGALRM, raise_timeout)
-    # Et on définie le temps à attendre avant de lancer le signal
-    signal.alarm(timeout)
+    Examples: ftpcheck.py -i chkme.txt -b "FTPU Ready"
+              ftpcheck.py -v -i ftplist.txt -b "Microsoft FTP"
+              ftpcheck.py -t 2 -i ips.txt -b "FTP"
+
+    [Options]
+
+        -v: Verbose mode
+        -t: Timeout on each connection in seconds (default 3)
+        -b: Banner to look for
+        -i: Input FTP servers list
+
+    If you want to save the results in a file use ' > <filename>'
+    after the command arguments.
+
+    Example: ftpcheck.py -i servers.txt -b "FTPU" > servers_result.txt
+
+    I strongly recommend not using the verbose flag for this method.'''
+    return usage
+
+def Main(FILE, BANNER):
     try:
-        retvalue = function()
-    except TimeoutError: # = Fonction quittée à cause du timeout
-        return None
-    else: # = Fonction quittée avant le timeout
-        # On annule le signal
-        signal.alarm(0)
-        return retvalue
+        temp = open(FILE)
+        servers = temp.readlines()
+        temp.close()
+    except IOError:
+        print '\n[-]Server list [%s] could not be retrieved: exiting' % (FILE)
+        sys.exit()
+    verbose = False
+    if '-v' in sys.argv:
+        verbose = True
+    timeout = 3
+    if '-t' in sys.argv[1:]:
+        try:
+            timeout = int(sys.argv[args.index('-t')+2].strip())
+        except TypeError:
+            print '\n[-]Timeout value must be a number'
+    banner = BANNER
 
-# Classes :
-###########
-
-class ArpRequest:
-    '''Génère une requête ARP et attend la réponse'''
+    chk = FtpCheck(servers, verbose, banner)
     
-    def __init__(self, ipaddr, if_name, arp_type=ARP_GRATUITOUS):
-        # Initialisation du socket (socket brut, donc besoin d'ê root)
-        self.arp_type = arp_type
-        self.if_ipaddr = socket.gethostbyname(socket.gethostname())
-        
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
-        self.socket.bind((if_name, socket.SOCK_RAW))
-        
-        self.ipaddr = ipaddr
-        
-        
-    def request(self):
-        '''Envois une requête arp et attend la réponse'''
-
-        # Envois de 5 requêtes ARP
-        for _ in range(5):
-            self._send_arp_request()
-        
-        # Puis attente de la réponse
-        if timeout(self._wait_response, 3):
-            return True
+    if verbose:
+        print '\n[+]Working...'
+    chk.Check(timeout)
+    if chk.matchlist != []:
+        if verbose:
+            print '\n[+]Found [%d] matches:\n' % (len(chk.matchlist))
+        for s in chk.matchlist:
+            print s
+    else:
+        if VERBOSE:
+            print '\n[-]No match'
         else:
-            return False
-    
-        
-    def _send_arp_request(self):
-        '''Envois une requête ARP pour la machine'''
-        
-        # Adresse logicielle de l'émetteur :
-        if self.arp_type == ARP_STANDARD: 
-            saddr = pack('!4B', 
-                           *[int(x) for x in self.if_ipaddr.split('.')])
-        else:
-            saddr = pack('!4B', 
-                              *[int(x) for x in self.ipaddr.split('.')])
-            
-        
-        
-        # Forge de la trame :
-        frame = [
-            ### Partie ETHERNET ###
-            # Adresse mac destination (=broadcast) :
-            pack('!6B', *(0xFF,) * 6),
-            # Adresse mac source :
-            self.socket.getsockname()[4],
-            # Type de protocole (=ARP) :
-            pack('!H', 0x0806),
-            
-            ### Partie ARP ###
-            # Type de protocole matériel/logiciel (=Ethernet/IP) :
-            pack('!HHBB', 0x0001, 0x0800, 0x0006, 0x0004),
-            # Type d'opération (=ARP Request) :
-            pack('!H', 0x0001),
-            # Adresse matériel de l'émetteur :
-            self.socket.getsockname()[4],
-            # Adresse logicielle de l'émetteur :
-            saddr,
-            # Adresse matérielle de la cible (=00*6) :
-            pack('!6B', *(0,) * 6),
-            # Adresse logicielle de la cible (=adresse fournie au
-            # constructeur) :
-            pack('!4B', *[int(x) for x in self.ipaddr.split('.')])
-        ]
-        
-        self.socket.send(''.join(frame)) # Envois de la trame sur le
-        # réseau
-        
-    
-    def _wait_response(self):
-        '''Attend la réponse de la machine'''
-        while 0xBeef:
-            # Récupération de la trame :
-            frame = self.socket.recv(1024)
-            
-            # Récupération du protocole sous forme d'entier :
-            proto_type = val2int(unpack('!2s', frame[12:14])[0])
-            if proto_type != 0x0806: # On passe le traitement si ce
-                continue             # n'est pas de l'arp
+            print 'None'
 
-            # Récupération du type d'opération sous forme d'entier :
-            op = val2int(unpack('!2s', frame[20:22])[0])
-            if op != 2:  # On passe le traitement pour tout ce qui n'est
-                continue # pas une réponse ARP
+if __name__ == '__main__':
 
-            # Récupération des différentes addresses de la trame :
-            arp_headers = frame[18:20]
-            arp_headers_values = unpack('!1s1s', arp_headers)
-            hw_size, pt_size = [val2int(v) for v in arp_headers_values]
-            total_addresses_byte = hw_size * 2 + pt_size * 2
-            arp_addrs = frame[22:22 + total_addresses_byte]
-            src_hw, src_pt, dst_hw, dst_pt = unpack('!%ss%ss%ss%ss' 
-                    % (hw_size, pt_size, hw_size, pt_size), arp_addrs)
-            
-            # Comparaison de l'adresse recherchée avec l'adresse trouvée
-            # dans la trame :
-            if src_pt == pack('!4B', 
-                             *[int(x) for x in self.ipaddr.split('.')]):
-                return True # Quand on a trouvé, on arrete de chercher !
-                # Et oui, c'est mal de faire un retour dans une boucle,
-                # je sais :)
+    if len(sys.argv) not in [4, 5, 6, 7, 8]:
+        print Help()
+        sys.exit()
+
+    args = sys.argv[1:]
+
+    try:
+        servers = sys.argv[args.index('-i')+2].strip()
+        banner = sys.argv[args.index('-b')+2].strip()
+    except ValueError:
+        print Help()
+        sys.exit()
+
+    Main(servers, banner)
