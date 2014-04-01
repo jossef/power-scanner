@@ -165,6 +165,9 @@ def print_banners_test():
 
     for banner_grabbing_async_result in banner_grabbing_async_results:
         server, operating_system, port = banner_grabbing_async_result.get()
+        if not server and not operating_system:
+            continue
+
         x.add_row([server, operating_system, get_port_info(port)])
 
     print x
