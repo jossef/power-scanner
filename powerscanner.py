@@ -16,151 +16,110 @@ import array
 
 from ping import *
 from multiprocessing.pool import ThreadPool
-from banner_helper import *
+from powscan_common.banner_grabber import BannerGrabber
+
+from powscan_common.banner_helper import *
+from powscan_common.socket_helper import *
 
 __author__ = 'jossef'
 
+#
+# def smtp_banner_grabber(address, port = 25):
+#     sock = None
+#     try:
+#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#         socket_connect(sock, address, port)
+#         banner = socket_recieve(sock)
+#
+#         operating_system = None
+#         server = None
+#
+#         # Lets scrape for any hints
+#         banner_lines = banner.split('\n')
+#         banner_lines = [item.strip() for item in banner_lines]
+#
+#         for banner_line in banner_lines:
+#             server, operating_system = get_smtp_banner_info(banner_line)
+#             if server or operating_system:
+#                 break
+#
+#         return server, operating_system, port
+#
+#
+#     except Exception as ex:
+#         return None, None, port
+#
+#     finally:
+#         if sock:
+#             sock.close()
+#
+# def ftp_banner_grabber(address, port = 21):
+#     sock = None
+#     try:
+#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#         socket_connect(sock, address, port)
+#         banner = socket_recieve(sock)
+#
+#         operating_system = None
+#         server = None
+#
+#         # Lets scrape for any hints
+#         banner_lines = banner.split('\n')
+#         banner_lines = [item.strip() for item in banner_lines]
+#
+#         for banner_line in banner_lines:
+#             server, operating_system = get_ftp_banner_info(banner_line)
+#             if server or operating_system:
+#                 break
+#
+#         return server, operating_system, port
+#
+#
+#     except Exception as ex:
+#         return None, None, port
+#
+#     finally:
+#         if sock:
+#             sock.close()
+#
+#
+# def http_banner_grabber(address, port = 80):
+#     sock = None
+#     try:
+#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#         socket_connect(sock, address, port)
+#
+#         sock.send("HEAD / HTTP/1.1\r\nHost: %s\r\n\r\n" % address)
+#         banner = socket_recieve(sock)
+#
+#         operating_system = None
+#         server = None
+#
+#         # Lets Search for the 'Server: ' instance
+#         banner_lines = banner.split('\n')
+#         banner_lines = [item.strip() for item in banner_lines]
+#
+#         server_prefix = 'server:'
+#         server_line = (item for item in banner_lines if item.lower().startswith(server_prefix)).next()
+#         if server_line:
+#             server_line = server_line[len(server_prefix):].strip()
+#
+#             server, operating_system = get_http_banner_info(server_line)
+#
+#         return server, operating_system, port
+#
+#     except Exception as ex:
+#         return None, None, port
+#
+#     finally:
+#         if sock:
+#             sock.close()
 
 
-# Thanks to https://gist.github.com/pklaus/289646 for the snippet
-# added yield
-def all_interfaces():
-    max_possible = 128  # arbitrary. raise if needed.
-    bytes = max_possible * 32
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    names = array.array('B', '\0' * bytes)
-    outbytes = struct.unpack('iL', fcntl.ioctl(
-        s.fileno(),
-        0x8912,  # SIOCGIFCONF
-        struct.pack('iL', bytes, names.buffer_info()[0])
-    ))[0]
 
-    namestr = names.tostring()
-
-    for i in range(0, outbytes, 40):
-        response = dict()
-        response['name'] = namestr[i:i + 16].split('\0', 1)[0]
-        response['hex_ip'] = namestr[i + 20:i + 24]
-        response['ip'] = str(format_ip(namestr[i + 20:i + 24]))
-        yield response
-
-
-def format_ip(addr):
-    return str(ord(addr[0])) + '.' + \
-           str(ord(addr[1])) + '.' + \
-           str(ord(addr[2])) + '.' + \
-           str(ord(addr[3]))
-
-
-def socket_connect(socket, address, port, timeout=5):
-    socket.settimeout(timeout)
-    socket.connect((address, port))
-    socket.settimeout(None)
-
-
-def socket_recieve(socket, timeout=5, buffer_size=4096):
-    socket.setblocking(0)
-
-    ready = select.select([socket], [], [], timeout)
-
-    if not ready[0]:
-        raise Exception('timeout')
-
-    data = socket.recv(buffer_size)
-    return data
-
-
-def smtp_banner_grabber(address, port):
-    sock = None
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        socket_connect(sock, address, port)
-        banner = socket_recieve(sock)
-
-        operating_system = None
-        server = None
-
-        # Lets scrape for any hints
-        banner_lines = banner.split('\n')
-        banner_lines = [item.strip() for item in banner_lines]
-
-        for banner_line in banner_lines:
-            server, operating_system = BannerHelper.get_smtp_banner_info(banner_line)
-            if server or operating_system:
-                break
-
-        return server, operating_system, port
-
-
-    except Exception as ex:
-        return None, None, port
-
-    finally:
-        if sock:
-            sock.close()
-
-def ftp_banner_grabber(address, port):
-    sock = None
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        socket_connect(sock, address, port)
-        banner = socket_recieve(sock)
-
-        operating_system = None
-        server = None
-
-        # Lets scrape for any hints
-        banner_lines = banner.split('\n')
-        banner_lines = [item.strip() for item in banner_lines]
-
-        for banner_line in banner_lines:
-            server, operating_system = BannerHelper.get_ftp_banner_info(banner_line)
-            if server or operating_system:
-                break
-
-        return server, operating_system, port
-
-
-    except Exception as ex:
-        return None, None, port
-
-    finally:
-        if sock:
-            sock.close()
-
-
-def http_banner_grabber(address, port):
-    sock = None
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        socket_connect(sock, address, port)
-
-        sock.send("HEAD / HTTP/1.1\r\nHost: %s\r\n\r\n" % address)
-        banner = socket_recieve(sock)
-
-        operating_system = None
-        server = None
-
-        # Lets Search for the 'Server: ' instance
-        banner_lines = banner.split('\n')
-        banner_lines = [item.strip() for item in banner_lines]
-
-        server_prefix = 'server:'
-        server_line = (item for item in banner_lines if item.lower().startswith(server_prefix)).next()
-        if server_line:
-            server_line = server_line[len(server_prefix):].strip()
-
-            server, operating_system = BannerHelper.get_http_banner_info(server_line)
-
-        return server, operating_system, port
-
-    except Exception as ex:
-        return None, None, port
-
-    finally:
-        if sock:
-            sock.close()
-
+def pool_worker(address, port ):
+    grabber = BannerGrabber.create(address, port)
+    return grabber.get_banner()
 
 banner_grabbing_thread_pool = ThreadPool(processes=10)
 banner_grabbing_async_results = []
@@ -190,21 +149,21 @@ def main():
             'ftp.swfwmd.state.fl.us',
             'ftp.mozilla.org']
 
-    ftps =[]
+    #ftps =[]
     for ftp in ftps:
-        async_result = banner_grabbing_thread_pool.apply_async(ftp_banner_grabber, (ftp, 21))
+        async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (ftp, 21))
         banner_grabbing_async_results.append(async_result)
 
     smtps = ['smtp.gmail.com', 'smtp.live.com', 'smtp.mail.yahoo.com', 'smtp.mail.yahoo.co.uk', 'smtp.o2.ie', 'smtp.att.yahoo.com', 'smtp.ntlworld.com', 'smtp.orange.net', 'smtp.wanadoo.co.uk', 'smtp.live.com', 'smtp.1and1.com', 'outgoing.verizon.net', 'smtp.comcast.net', 'smtp.mail.com']
 
     for smtp in smtps:
-        async_result = banner_grabbing_thread_pool.apply_async(smtp_banner_grabber, (smtp, 25))
+        async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (smtp, 25))
         banner_grabbing_async_results.append(async_result)
 
     https = ['www.jossef.com', 'www.gmail.com', 'www.ynet.co.il', 'www.colman.ac.il']
-    https =[]
+    #https =[]
     for http in https:
-        async_result = banner_grabbing_thread_pool.apply_async(http_banner_grabber, (http, 80))
+        async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (http, 80))
         banner_grabbing_async_results.append(async_result)
 
     for banner_grabbing_async_result in banner_grabbing_async_results:

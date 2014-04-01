@@ -1,6 +1,61 @@
-__author__ = 'Jossef'
-# Info scarped from http://www.computec.ch/projekte/httprecon/?s=database&t=head_existing&f=banner
+__author__ = 'Jossef Harush'
 
+
+def get_ftp_banner_info(banner):
+    # Lower the banner's case in order to get case insensitive match
+    banner = banner.lower()
+    server = None
+    operating_system = None
+
+    if any(hint for hint, os in ftp_servers.iteritems() if hint in banner):
+        server, operating_system = ((hint, os) for hint, os in ftp_servers.iteritems() if hint in banner).next()
+
+    return server, operating_system
+
+
+def get_smtp_banner_info(banner):
+    # Lower the banner's case in order to get case insensitive match
+    banner = banner.lower()
+    server = None
+    operating_system = None
+
+    if any(hint for hint, os in smtp_servers.iteritems() if hint in banner):
+        server, operating_system = ((hint, os) for hint, os in smtp_servers.iteritems() if hint in banner).next()
+
+    return server, operating_system
+
+
+def get_http_banner_info(banner):
+    # Lower the banner's case in order to get case insensitive match
+    banner = banner.lower()
+    server = known_banner_web_servers.get(banner, None)
+    operating_system = None
+
+    # If we successfully matched a server
+    if server:
+
+        if any(item in banner for item in windows_hints):
+            operating_system = 'windows'
+        elif any(item in banner for item in linux_hints):
+            distribution = (item in banner for item in linux_hints).next()
+            operating_system = 'linux ({0})'.format(distribution)
+        elif any(item in banner for item in mac_os_hints):
+            operating_system = 'mac os'
+
+    # Otherwise, let's try to guess using hints
+    else:
+        if any(item in banner for item in hosting_hints):
+            operating_system = 'filtered (hosting protection)'
+            server = banner
+
+    return server, operating_system
+
+
+# -------------------------------------------------------------------
+# Static hard-coded data below (in real life should be more dynamic..)
+# -- -- -- -- -- -- -- --
+
+# Most info has been scarped from http://www.computec.ch/projekte/httprecon/?s=database&t=head_existing&f=banner
 
 known_banner_web_servers = {
     '0w/0.8c': '0w 0.8c',
@@ -511,270 +566,3 @@ smtp_servers = {
     'zimbra': 'unix',
     'zmailer': 'unix',
 }
-
-
-class BannerHelper(object):
-    @staticmethod
-    def get_ftp_banner_info(banner):
-
-        # Lower the banner's case in order to get case insensitive match
-        banner = banner.lower()
-        server = None
-        operating_system = None
-
-        if any(hint for hint, os in ftp_servers.iteritems() if hint in banner):
-            server, operating_system = ((hint, os) for hint, os in ftp_servers.iteritems() if hint in banner).next()
-
-        return server, operating_system
-
-
-    @staticmethod
-    def get_smtp_banner_info(banner):
-
-        # Lower the banner's case in order to get case insensitive match
-        banner = banner.lower()
-        server = None
-        operating_system = None
-
-        if any(hint for hint, os in smtp_servers.iteritems() if hint in banner):
-            server, operating_system = ((hint, os) for hint, os in smtp_servers.iteritems() if hint in banner).next()
-
-        return server, operating_system
-
-
-    @staticmethod
-    def get_http_banner_info(banner):
-
-        # Lower the banner's case in order to get case insensitive match
-        banner = banner.lower()
-        server = known_banner_web_servers.get(banner, None)
-        operating_system = None
-
-        # If we successfully matched a server
-        if server:
-
-            if any(item in banner for item in windows_hints):
-                operating_system = 'windows'
-            elif any(item in banner for item in linux_hints):
-                distribution = (item in banner for item in linux_hints).next()
-                operating_system = 'linux ({0})'.format(distribution)
-            elif any(item in banner for item in mac_os_hints):
-                operating_system = 'mac os'
-
-        # Otherwise, let's try to guess using hints
-        else:
-            if any(item in banner for item in hosting_hints):
-                operating_system = 'filtered (hosting protection)'
-                server = banner
-
-        return server, operating_system
-
-
-known_ports = {
-    1: 'tcp port service multiplexer (tcpmux)',
-    2: 'compressnet management utility',
-    3: 'compressnet compression process',
-    5: 'remote job entry',
-    7: 'echo',
-    9: 'discard',
-    11: 'active users (systat service)',
-    13: 'daytime(rfc 867)',
-    17: 'quote of the day',
-    18: 'message send',
-    19: 'character generator(chargen)',
-    20: 'ftp data transfer',
-    21: 'ftp',
-    22: 'secure shell (ssh)',
-    23: 'telnet',
-    24: 'priv-mail',
-    25: 'simple mail transfer(smtp)',
-    26: 'encrypted smtp',
-    27: 'nsw user system fe',
-    29: 'msg icp',
-    33: 'display support',
-    35: 'any private printer server',
-    37: 'time',
-    39: 'resource location(rlp)',
-    42: 'arpa host name server',
-    43: 'whois',
-    47: 'ni ftp',
-    49: 'tacacs login host',
-    50: 'remote mail checking',
-    51: 'imp logical address maintenance',
-    52: 'xns (xerox network systems) time',
-    53: 'domain name system (dns)',
-    54: 'xns (xerox network systems) clearinghouse',
-    55: 'isi graphics language (isi-gl)',
-    56: 'xns (xerox network systems) authentication',
-    57: 'mail transfer(rfc 780)',
-    58: 'xns (xerox network systems) mail',
-    64: 'ci (travelport) (formerly covia) comms integrator',
-    67: 'bootstrap(bootp) server',
-    68: 'bootstrap(bootp) client',
-    69: 'trivial file transfer(tftp)',
-    70: 'gopher',
-    71: 'netrjs',
-    72: 'netrjs',
-    73: 'netrjs',
-    74: 'netrjs',
-    77: 'any private remote job entry',
-    79: 'finger',
-    80: 'hypertext transfer(http)',
-    88: 'kerberos',
-    90: 'dnsix (dod network security for information exchange)',
-    101: 'nic host name',
-    102: 'iso-tsap (transport service access point) class 0',
-    104: 'acr/nema digital imaging and communications in medicine (dicom)',
-    105: 'ccso nameserver(qi/ph)',
-    107: 'remote telnet service',
-    108: 'sna gateway access server',
-    109: 'post officev2 (pop2)',
-    110: 'post officev3 (pop3)',
-    111: 'onc rpc (sun rpc)',
-    113: 'authentication service (auth)',
-    115: 'simple file transfer(sftp)',
-    117: 'uucp path service',
-    118: 'sql (structured query language) services',
-    119: 'network news transfer(nntp)',
-    123: 'network time(ntp)',
-    126: 'formerly unisys unitary login, renamed by unisys to nxedit.',
-    135: 'dce endpoint resolution',
-    137: 'netbios netbios name service',
-    138: 'netbios netbios datagram service',
-    139: 'netbios netbios session service',
-    143: 'internet message access(imap)',
-    152: 'background file transfer program (bftp)',
-    153: 'sgmp, simple gateway monitoring',
-    156: 'sql service',
-    161: 'simple network management(snmp)',
-    162: 'simple network managementtrap (snmptrap)',
-    170: 'print-srv, network postscript',
-    175: 'vmnet (ibm z/vm, z/os & z/vse - network job entry(nje))',
-    177: 'x display manager control(xdmcp)',
-    179: 'bgp (border gateway )',
-    194: 'internet relay chat (irc)',
-    199: 'smux, snmp unix multiplexer',
-    201: 'appletalk routing maintenance',
-    209: 'the quick mail transfer',
-    210: 'ansi z39.50',
-    213: 'internetwork packet exchange (ipx)',
-    218: 'message posting(mpp)',
-    220: 'internet message access(imap), version 3',
-    259: 'esro, efficient short remote operations',
-    264: 'bgmp, border gateway multicast',
-    280: 'http-mgmt',
-    308: 'novastor online backup',
-    311: 'mac os x server admin (officially appleshare ip web administration)',
-    318: 'pkix tsp, time stamp',
-    319: 'precision timeevent messages',
-    320: 'precision timegeneral messages',
-    350: 'matip-type a, mapping of airline traffic over internet',
-    351: 'matip-type b, mapping of airline traffic over internet',
-    366: 'odmr, on-demand mail relay',
-    369: 'rpc2portmap',
-    370: 'codaauth2',
-    371: 'clearcase albd',
-    383: 'hp data alarm manager',
-    384: 'a remote network server system',
-    387: 'aurp, appletalk update-based routing [20]',
-    389: 'lightweight directory access(ldap)',
-    399: 'digital equipment corporation decnet (phase v+) over tcp/ip',
-    401: 'ups uninterruptible power supply',
-    427: 'service location(slp)',
-    443: 'hypertext transferover tls/ssl (https)',
-    444: 'snpp, simple network paging(rfc 1568)',
-    445: 'microsoft-ds smb file sharing',
-    464: 'kerberos change/set password',
-    465: 'url rendezvous directory for ssm (cisco ), smtp over ssl',
-    475: 'tcpnethaspsrv (aladdin knowledge systems hasp services)',
-    497: 'dantz retrospect',
-    500: 'internet security association and key management(isakmp)',
-    504: 'citadel',
-    514: 'syslog',
-    515: 'line printer daemon',
-    517: 'talk',
-    518: 'ntalk',
-    520: 'routing information(rip)',
-    521: 'routing informationnext generation (ripng)',
-    524: 'netware core(ncp)',
-    525: 'timed, timeserver',
-    530: 'rpc',
-    532: 'netnews',
-    533: 'netwall, for emergency broadcasts',
-    540: 'uucp (unix-to-unix copy )',
-    542: 'commerce (commerce applications)',
-    543: 'klogin, kerberos login',
-    544: 'kshell, kerberos remote shell',
-    546: 'dhcpv6 client',
-    547: 'dhcpv6 server',
-    548: 'apple filing(afp) over tcp',
-    550: 'new-rwho, new-who',
-    554: 'real time streaming(rtsp)',
-    556: 'remotefs, rfs, rfs_server',
-    560: 'rmonitor, remote monitor',
-    561: 'monitor',
-    563: 'nntpover tls/ssl (nntps)',
-    587: 'e-mail message submission (smtp)',
-    591: 'filemaker 6.0 (and later) web sharing (http alternate, also see port 80)',
-    593: 'http rpc - remote procedure call over hypertext transfer',
-    604: 'tunnel profile',
-    623: 'asf remote management and control(asf-rmcp)',
-    631: 'internet printing(ipp)',
-    635: 'rlz dbase',
-    636: 'lightweight directory accessover tls/ssl (ldaps)',
-    639: 'msdp, multicast source discovery',
-    641: 'supportsoft nexus remote command (control/listening)',
-    646: 'ldp, label distribution , a routing',
-    647: 'dhcp failover',
-    648: 'rrp (registry registrar)',
-    651: 'ieee-mms',
-    653: 'supportsoft nexus remote command (data)',
-    654: 'media management system (mms) media management(mmp)',
-    657: 'ibm rmc',
-    660: 'mac os x server administration',
-    666: 'doom, first online first-person shooter',
-    674: 'acap (application configuration access )',
-    688: 'realm-rusd (applianceware server appliance management )',
-    691: 'ms exchange routing',
-    694: 'linux-ha high availability heartbeat',
-    695: 'ieee-mms-ssl (ieee media management system over ssl)',
-    698: 'olsr (optimized link state routing)',
-    700: 'epp (extensible provisioning)',
-    701: 'lmp (link management(internet))',
-    702: 'iris',
-    706: 'secure internet live conferencing (silc)',
-    711: 'cisco tag distribution',
-    712: 'tbrpf',
-    749: 'kerberos administration',
-    750: 'kerberos-iv, kerberos version iv',
-    753: 'reverse routing header (rrh)',
-    754: 'tell send',
-    800: 'mdbe daemon',
-    808: 'microsoft net.tcp port sharing service',
-    847: 'dhcp failover',
-    848: 'group domain of interpretation (gdoi)',
-    860: 'iscsi (rfc 3720)',
-    861: 'owamp control (rfc 4656)',
-    862: 'twamp control (rfc 5357)',
-    873: 'rsync file synchronization',
-    902: 'ideafarm-door',
-    989: 'ftps(data): ftp over tls/ssl',
-    990: 'ftps(control): ftp over tls/ssl',
-    991: 'nas (netnews administration system)',
-    992: 'telnetover tls/ssl',
-    993: 'internet message accessover tls/ssl (imaps)',
-    994: 'internet relay chat over tls/ssl (ircs)',
-    995: 'post office3 over tls/ssl (pop3s)',
-}
-
-
-class PortHelper(object):
-    @staticmethod
-    def get_port_info(port):
-        return known_ports.get(port, 'unknown')
-
-
-
-
-
-
