@@ -8,27 +8,51 @@ import array
 __author__ = 'Jossef Harush'
 
 
-def socket_connect(socket, address, port, timeout=5):
-    socket.settimeout(timeout)
-    socket.connect((address, port))
-    socket.settimeout(None)
+# TODO - default timeout
+def socket_connect(sock, address, port, timeout=5):
+    sock.settimeout(timeout)
+    sock.connect((address, port))
+    sock.settimeout(None)
 
 
-def socket_recieve(socket, timeout=5, buffer_size=4096):
-    socket.setblocking(0)
+# TODO - default timeout
+def socket_receive(sock, timeout=5, buffer_size=4096):
+    sock.setblocking(0)
 
-    ready = select.select([socket], [], [], timeout)
+    ready = select.select([sock], [], [], timeout)
 
     if not ready[0]:
         raise Exception('timeout')
 
-    data = socket.recv(buffer_size)
+    data = sock.recv(buffer_size)
     return data
 
 
+# TODO - default timeout
+def socket_transmit(packet, address, timeout=5):
+    """
+    packet - instance of Packet class defined in packet_helper
+    """
+
+    # TODO check what happens if illegal address
+    destination = (socket.gethostbyname(address), 0)
+
+    # Definition of RAW socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+    try:
+        packet_bytes = packet.serialize()
+        sock.sendto(packet_bytes, destination)
+        data = socket_receive(sock, timeout=timeout)
+        return data
+    # Release resources
+    finally:
+        if sock:
+            sock.close()
+
+# -- == -- == -- == -- == -- == -- == -- == -- == -- == -- ==
 # Thanks to https://gist.github.com/pklaus/289646 for the snippet
 # modification - added yield returns
-def all_interfaces():
+def get_interfaces():
     max_possible = 128  # arbitrary. raise if needed.
     bytes = max_possible * 32
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

@@ -52,6 +52,30 @@ class Pinger:
         else:
             self.destinfo = (name, ipaddr[0])
 
+    def recv_output(self, bytes, dest, addr, seq, delta):
+        "Place holder for subclass output/collector method"
+        pass
+
+    def ping(self):
+        # don't wait more than 10 seconds from now for first reply
+        self.last_arrival = time.time()
+        while 1:
+            if self.sent < self.num:
+                self.send_packet()
+            elif not self.times and self.last == self.num - 1:
+                break
+            else:
+                now = time.time()
+                if self.deltas:
+                    # Wait no more than 10 times the longest delay so far
+                    if (now - self.last_arrival) > max(self.deltas) / 100.:
+                        break
+                else:
+                    # Wait no more than 10 seconds
+                    if (now - self.last_arrival) > 10.:
+                        break
+            self.wait()
+
     def send_packet(self):
         pkt = icmp.Packet()
         pkt.type = icmp.ICMP_ECHO
@@ -77,30 +101,6 @@ class Pinger:
                          self.destinfo[1], pkt.seq, delta)
         if pkt.seq > self.last:
             self.last = pkt.seq
-
-    def recv_output(self, bytes, dest, addr, seq, delta):
-        "Place holder for subclass output/collector method"
-        pass
-
-    def ping(self):
-        # don't wait more than 10 seconds from now for first reply
-        self.last_arrival = time.time()
-        while 1:
-            if self.sent < self.num:
-                self.send_packet()
-            elif not self.times and self.last == self.num - 1:
-                break
-            else:
-                now = time.time()
-                if self.deltas:
-                    # Wait no more than 10 times the longest delay so far
-                    if (now - self.last_arrival) > max(self.deltas) / 100.:
-                        break
-                else:
-                    # Wait no more than 10 seconds
-                    if (now - self.last_arrival) > 10.:
-                        break
-            self.wait()
 
     def wait(self):
         start = time.time()

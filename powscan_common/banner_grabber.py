@@ -44,7 +44,7 @@ class BannerGrabber(object):
             self._handshake(sock)
 
             # Receive the banner
-            banner = socket_recieve(sock)
+            banner = socket_receive(sock)
 
             # Parse the bustard
             server, operating_system = self._parse_banner(banner)

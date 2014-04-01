@@ -1,3 +1,5 @@
+from powscan_common.packet_helper import IcmpPacket
+
 __author__ = 'Jossef Harush'
 import abc
 import socket
@@ -5,58 +7,68 @@ import logging
 
 from socket_helper import *
 from banner_helper import *
+import time
 
 
 class PortScanner(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, address, ports=range(1, 65535)):
+    # TODO change default sleep value
+    def __init__(self, address, ports=range(1, 65535), sleep_in_milliseconds=100):
         self.address = address
         self.ports = ports
-
+        self.sleep_in_milliseconds = sleep_in_milliseconds
 
     def scan(self):
-        
-        sock = None
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            socket_connect(sock, self.address, self.port)
+        for port in self.ports:
+            yield self._scan(port)
 
-            # Optional "Handshake" - sends something before receive
-            self._handshake(sock)
-
-            # Receive the banner
-            banner = socket_recieve(sock)
-
-            # Parse the bustard
-            server, operating_system = self._parse_banner(banner)
-
-            return server, operating_system, self.port
-
-        except Exception as ex:
-            # Log exception in debug mode
-            logging.debug(ex)
-
-            return None, None, self.port
-
-        finally:
-            if sock:
-                sock.close()
-
+            # Sleep for each iteration
+            time.sleep(self.sleep_in_milliseconds / 1000.0)
 
     @abc.abstractmethod
-    def _handshake(self, sock):
+    def _scan(self, port):
         """
-        sock - the opened socket
-        the inheritor should implement his protocol's relevant behavior
-        for instance, in http: sends HEAD / HTTP ... and then waits for response / timeout
-        on the other hand on other protocols such as smtp, the server sends his banner on connection
+        port - port to scan
         """
-        pass
 
-    @abc.abstractmethod
-    def _parse_banner(self, banner):
-        """Should handle the parse of the banner and return <server>, <operating_system>"""
         pass
 
 
+class FullTcpScanner(PortScanner):
+    def _scan(self, port):
+        """
+
+        """
+        icmp_packet = IcmpPacket()
+        socket_transmit(icmp_packet, self.address,)
+
+        return 'scanning tcp {0}'.format(port)
+
+
+class UdpScanner(PortScanner):
+    def _scan(self, port):
+        """
+        """
+        pass
+
+
+class AckScanner(PortScanner):
+    def _scan(self, port):
+        """
+        """
+        pass
+
+
+class StealthScanner(PortScanner):
+    def _scan(self, port):
+        """
+        """
+        pass
+
+
+class FinScanner(PortScanner):
+    def _scan(self, port):
+        """
+        """
+        pass

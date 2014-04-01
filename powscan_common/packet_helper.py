@@ -1,3 +1,4 @@
+import os
 import struct
 import array
 import struct
@@ -98,10 +99,17 @@ class IcmpPacketType(object):
 # IcmpPacket
 
 class IcmpPacket(Packet):
-    def __init__(self, type=0, code=0, id=0, seq=0, data=''):
+    def __init__(self, type=IcmpPacketType.ICMP_ECHO, code=0, id=None, seq=0, data=''):
         self.type = type
         self.code = code
-        self.id = id
+
+        # id not initialized
+        if not id:
+            # Treat the hosting process's pid as id
+            id = os.getpid()
+        else:
+            self.id = id
+
         self.seq = seq
         self.data = data
 
