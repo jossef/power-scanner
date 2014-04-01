@@ -2,13 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="fda332da-3abb-4b47-aadb-45455464b7bd" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/powscan_common/__init__.py" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/powscan_common/banner_grabber.py" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/powscan_common/port_helper.py" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/.idea/dictionaries/root.xml" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/powscan_common/socket_helper.py" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/banner_helper.py" afterPath="$PROJECT_DIR$/powscan_common/banner_helper.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/misc.xml" afterPath="$PROJECT_DIR$/.idea/misc.xml" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/prettytable.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/powscan_common/port_helper.py" afterPath="$PROJECT_DIR$/powscan_common/port_helper.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/powerscanner.py" afterPath="$PROJECT_DIR$/powerscanner.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
@@ -48,7 +43,7 @@
       <file leaf-file-name="port_helper.py" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/powscan_common/port_helper.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="183" column="12" selection-start="6969" selection-end="6969" vertical-scroll-proportion="0.0" vertical-offset="2175" max-vertical-offset="3744">
+            <state line="52" column="15" selection-start="1530" selection-end="1530" vertical-scroll-proportion="-9.703704" vertical-offset="674" max-vertical-offset="3744">
               <folding />
             </state>
           </provider>
@@ -65,12 +60,23 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="powerscanner.py" pinned="true" current="false" current-in-tab="false">
+      <file leaf-file-name="powerscanner.py" pinned="true" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/powerscanner.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="172" column="16" selection-start="5048" selection-end="5048" vertical-scroll-proportion="-1143.0" vertical-offset="810" max-vertical-offset="5040">
+            <state line="165" column="0" selection-start="5017" selection-end="5017" vertical-scroll-proportion="0.6900662" vertical-offset="2449" max-vertical-offset="4968">
               <folding>
                 <element signature="e#0#15#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="prettytable.py" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/prettytable.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state line="1474" column="10" selection-start="54203" selection-end="54203" vertical-scroll-proportion="0.0" vertical-offset="25377" max-vertical-offset="26640">
+              <folding>
+                <element signature="e#1622#1633#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -85,13 +91,12 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="banner_grabber.py" pinned="true" current="true" current-in-tab="true">
+      <file leaf-file-name="banner_grabber.py" pinned="true" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/powscan_common/banner_grabber.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="128" column="0" selection-start="3650" selection-end="3650" vertical-scroll-proportion="0.37046006" vertical-offset="0" max-vertical-offset="826">
+            <state line="51" column="54" selection-start="1342" selection-end="1377" vertical-scroll-proportion="0.0" vertical-offset="324" max-vertical-offset="1674">
               <folding>
                 <element signature="e#29#39#0" expanded="true" />
-                <element signature="e#161#2152#0" expanded="false" />
                 <element signature="e#2199#3042#0" expanded="false" />
                 <element signature="e#3089#3648#0" expanded="false" />
                 <element signature="e#3694#4251#0" expanded="false" />
@@ -124,11 +129,12 @@
         <option value="$PROJECT_DIR$/powscan-common/socket-helper.py" />
         <option value="$PROJECT_DIR$/powscan-common/banner-grabber.py" />
         <option value="$PROJECT_DIR$/powscan-common/banner_grabber.py" />
-        <option value="$PROJECT_DIR$/powscan_common/port_helper.py" />
         <option value="$PROJECT_DIR$/powscan_common/banner_helper.py" />
         <option value="$PROJECT_DIR$/powscan_common/socket_helper.py" />
-        <option value="$PROJECT_DIR$/powerscanner.py" />
         <option value="$PROJECT_DIR$/powscan_common/banner_grabber.py" />
+        <option value="$PROJECT_DIR$/tabulate.py" />
+        <option value="$PROJECT_DIR$/powscan_common/port_helper.py" />
+        <option value="$PROJECT_DIR$/powerscanner.py" />
       </list>
     </option>
   </component>
@@ -468,7 +474,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="python-line">
           <url>file://$PROJECT_DIR$/powerscanner.py</url>
-          <line>180</line>
+          <line>176</line>
           <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
@@ -688,13 +694,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/powscan_common/port_helper.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="183" column="12" selection-start="6969" selection-end="6969" vertical-scroll-proportion="0.0" vertical-offset="2931" max-vertical-offset="3744">
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/powscan_common/socket_helper.py">
       <provider selected="true" editor-type-id="text-editor">
         <state line="5" column="0" selection-start="68" selection-end="68" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="1098">
@@ -711,24 +710,39 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/powerscanner.py">
+    <entry file="file://$PROJECT_DIR$/powscan_common/banner_grabber.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="172" column="16" selection-start="5048" selection-end="5048" vertical-scroll-proportion="-1143.0" vertical-offset="810" max-vertical-offset="5040">
+        <state line="51" column="54" selection-start="1342" selection-end="1377" vertical-scroll-proportion="0.0" vertical-offset="324" max-vertical-offset="1674">
           <folding>
-            <element signature="e#0#15#0" expanded="true" />
+            <element signature="e#29#39#0" expanded="true" />
+            <element signature="e#2199#3042#0" expanded="false" />
+            <element signature="e#3089#3648#0" expanded="false" />
+            <element signature="e#3694#4251#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/powscan_common/banner_grabber.py">
+    <entry file="file://$PROJECT_DIR$/prettytable.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="128" column="0" selection-start="3650" selection-end="3650" vertical-scroll-proportion="0.37046006" vertical-offset="0" max-vertical-offset="826">
+        <state line="1474" column="10" selection-start="54203" selection-end="54203" vertical-scroll-proportion="0.0" vertical-offset="25377" max-vertical-offset="26640">
           <folding>
-            <element signature="e#29#39#0" expanded="true" />
-            <element signature="e#161#2152#0" expanded="false" />
-            <element signature="e#2199#3042#0" expanded="false" />
-            <element signature="e#3089#3648#0" expanded="false" />
-            <element signature="e#3694#4251#0" expanded="false" />
+            <element signature="e#1622#1633#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/powscan_common/port_helper.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="52" column="15" selection-start="1530" selection-end="1530" vertical-scroll-proportion="-9.703704" vertical-offset="674" max-vertical-offset="3744">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/powerscanner.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="165" column="0" selection-start="5017" selection-end="5017" vertical-scroll-proportion="0.6900662" vertical-offset="2449" max-vertical-offset="4968">
+          <folding>
+            <element signature="e#0#15#0" expanded="true" />
           </folding>
         </state>
       </provider>

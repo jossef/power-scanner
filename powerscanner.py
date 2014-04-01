@@ -19,7 +19,9 @@ from multiprocessing.pool import ThreadPool
 from powscan_common.banner_grabber import BannerGrabber
 
 from powscan_common.banner_helper import *
+from powscan_common.port_helper import get_port_info
 from powscan_common.socket_helper import *
+from prettytable import PrettyTable
 
 __author__ = 'jossef'
 
@@ -117,44 +119,30 @@ __author__ = 'jossef'
 
 
 
-def pool_worker(address, port ):
+def pool_worker(address, port):
     grabber = BannerGrabber.create(address, port)
     return grabber.get_banner()
+
 
 banner_grabbing_thread_pool = ThreadPool(processes=10)
 banner_grabbing_async_results = []
 
 
-def main():
-    ftps = ['ftp.freshrpms.net',
-            'ftp.heanet.ie',
-            'ftp.rediris.es',
-            'ftp.tu-chemnitz.de',
-            'ftp.es.kde.org',
-            'ftp.esat.net',
-            'ftp.leo.org',
-            'ftp.mirror.nl',
-            'ftp.it.freebsd.org',
-            'ftp.gwdg.de',
-            'ftp.lublin.pl',
-            'ftp.rhnet. is',
-            'ftp.de.netbsd.org',
-            'ftp.iij.ad.jp',
-            'ftp.bv.kernel.org',
-            'ftp.ussg.iu.edu',
-            'ftp.aist-nara.ac.jp',
-            'ftp.uni-bayreuth.de',
-            'ftp.ch.freebsd.org',
-            'ftp.servage.com',
-            'ftp.swfwmd.state.fl.us',
-            'ftp.mozilla.org']
-
+def print_banners_test():
+    ftps = ['ftp.freshrpms.net', 'ftp.heanet.ie', 'ftp.rediris.es', 'ftp.tu-chemnitz.de', 'ftp.es.kde.org',
+            'ftp.esat.net', 'ftp.leo.org', 'ftp.mirror.nl', 'ftp.it.freebsd.org', 'ftp.gwdg.de', 'ftp.lublin.pl',
+            'ftp.rhnet. is', 'ftp.de.netbsd.org', 'ftp.iij.ad.jp', 'ftp.bv.kernel.org', 'ftp.ussg.iu.edu',
+            'ftp.aist-nara.ac.jp', 'ftp.uni-bayreuth.de', 'ftp.ch.freebsd.org', 'ftp.servage.com',
+            'ftp.swfwmd.state.fl.us', 'ftp.mozilla.org']
     #ftps =[]
+
     for ftp in ftps:
         async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (ftp, 21))
         banner_grabbing_async_results.append(async_result)
 
-    smtps = ['smtp.gmail.com', 'smtp.live.com', 'smtp.mail.yahoo.com', 'smtp.mail.yahoo.co.uk', 'smtp.o2.ie', 'smtp.att.yahoo.com', 'smtp.ntlworld.com', 'smtp.orange.net', 'smtp.wanadoo.co.uk', 'smtp.live.com', 'smtp.1and1.com', 'outgoing.verizon.net', 'smtp.comcast.net', 'smtp.mail.com']
+    smtps = ['smtp.gmail.com', 'smtp.live.com', 'smtp.mail.yahoo.com', 'smtp.mail.yahoo.co.uk', 'smtp.o2.ie',
+             'smtp.att.yahoo.com', 'smtp.ntlworld.com', 'smtp.orange.net', 'smtp.wanadoo.co.uk', 'smtp.live.com',
+             'smtp.1and1.com', 'outgoing.verizon.net', 'smtp.comcast.net', 'smtp.mail.com']
 
     for smtp in smtps:
         async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (smtp, 25))
@@ -166,16 +154,24 @@ def main():
         async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (http, 80))
         banner_grabbing_async_results.append(async_result)
 
+
+    # ------- === ------
+    # Printing like a boss
+
+    x = PrettyTable(["Server", "Operating System", "Port"])
+    x.align["Server"] = "l"
+    x.align["Operating System"] = "l"
+    x.align["Port"] = "l"
+
     for banner_grabbing_async_result in banner_grabbing_async_results:
+        server, operating_system, port = banner_grabbing_async_result.get()
+        x.add_row([server, operating_system, get_port_info(port)])
 
-        result = banner_grabbing_async_result.get()
-        if not result:
-            continue
+    print x
 
-        print result
-        print '.................................... \r\n \r\n '
 
-    print 'thats it'
+def main():
+    print_banners_test()
 
     return
     p = CmdlinePinger('8.8.8.8', 1)
