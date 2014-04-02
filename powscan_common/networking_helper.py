@@ -73,7 +73,7 @@ def convert_v4_address_string_to_bits(ip_address):
     return ''.join([bin(int(octet))[2:].zfill(8) for octet in ip_address.split('.')])
 
 
-def get_network_addresses(ip_address, subnet_mask):
+def get_network_endpoint_addresses(ip_address, subnet_mask):
     """
     returns a list of available ip addresses for endpoints
     """

@@ -1,4 +1,7 @@
 import abc
+import logging
+from networking_helper import *
+from powscan_common.packet_helper import *
 
 __author__ = 'Jossef Harush'
 
@@ -6,43 +9,104 @@ __author__ = 'Jossef Harush'
 class NetworkMapper(object):
     __metaclass__ = abc.ABCMeta
 
-    def map(self, interface_ip_address=None, subnet=None):
+    def __init__(self, include_empty_responses=False, skip_ip_addresses=[]):
+        self.include_empty_responses = include_empty_responses
+        self.skip_ip_addresses = skip_ip_addresses
+
+    def _map_all_interfaces(self, include_loopback=False):
+        # Map all interface (except loopback)
+        interfaces = get_interfaces()
+
+        for interface in interfaces:
+
+            interface_ip_address = interface[1]
+            interface_subnet_mask = interface[3]
+
+            if interface_ip_address == '127.0.0.1' or include_loopback:
+                continue
+
+            items = self._map_interface(interface_ip_address, interface_subnet_mask)
+
+            # re-yielding the items in order to be transparent to public 'map' callers
+            for item in items:
+                yield item
+
+    def _map_interface(self, interface_ip_address, interface_subnet_mask):
+        """
+        Maps the interface
+        calling _map for each endpoint address in the given interface address + mask
+        """
+        endpoint_addresses = get_network_endpoint_addresses(interface_ip_address, interface_subnet_mask)
+        for endpoint_address in endpoint_addresses:
+
+            # If the current endpoint address is in the skip list, ignore it.
+            if endpoint_address in self.skip_ip_addresses:
+                continue
+
+            result = self._map(endpoint_address)
+
+            # If the result is None - don't yield by default
+            # If self.include_empty_responses is True, always include
+            if result or self.include_empty_responses:
+                yield result
+
+
+    def map(self, interface_ip_address=None, interface_subnet_mask=None, include_loopback=False):
         """
         map all the hosts in subnet
 
         when interface_ip_address and  subnet is None,
-        we enumerate the local interfaces and perform the mapping login for each interface
+            we enumerate the local interfaces and perform the mapping login for each interface
+            * note: by default the loopback interface is being ignored.
+                    in case you would like to change this behavior,
+                    set True in 'include_loopback'
 
         when interface_ip_address is valid but subnet is None,
-        we enumerate the local interfaces to match a suitable subnet
+            we enumerate the local interfaces to match a suitable subnet
 
         """
+        # If ip was not provided
+        if not interface_ip_address:
+            # let's do this for all interfaces
+            return self._map_all_interfaces(include_loopback)
 
-        if interface_ip_address is None:
-            # Map all interface
-            pass
+        # IP provided but mac is missing
+        if not interface_subnet_mask:
+            # let's find the suitable mac:
+            interfaces = get_interfaces()
 
-        # Ip address provided but mac is missing. let's find the suitable mac
-        elif subnet is None:
-            pass
+            for item in interfaces:
 
-        # Both
-        else:
-            pass
+                current_ip_address = item[1]
+                current_subnet = item[3]
+
+                if interface_ip_address == current_ip_address:
+                    interface_subnet_mask = current_subnet
+                    break
+
+            # If we didn't find the given ip address in the interfaces list
+            if not interface_subnet_mask:
+                raise Exception('interface {0} was not found'.format(interface_ip_address))
+
+        return self._map_interface(interface_ip_address, interface_subnet_mask)
 
 
-        @abc.abstractmethod
-        def _map(self, ip_address, subnet):
-            pass
+    @abc.abstractmethod
+    def _map(self, ip_address):
+        pass
 
 
 class IcmpNetworkMapper(NetworkMapper):
-    def _map(self, ip_address, subnet):
+    def _map(self, ip_address):
 
-        if not ip_address:
-            raise ValueError("argument 'ip_address' is None")
+        try:
+            icmp_packet = IcmpPacket()
+            response_bytes = socket_transmit(icmp_packet, ip_address)
+            icmp_packet.deserialize(response_bytes)
 
-        if not subnet:
-            raise ValueError("argument 'subnet' is None")
-
-        pass
+            return icmp_packet
+        # Exception may be thrown if timeout or communication error
+        # We ignoring it purposely and logging it
+        except Exception as ex:
+            logging.debug(ex)
+            return None

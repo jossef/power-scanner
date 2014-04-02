@@ -2,6 +2,8 @@
   <dictionary name="root">
     <words>
       <w>deserialize</w>
+      <w>icmp</w>
+      <w>loopback</w>
       <w>metaclass</w>
     </words>
   </dictionary>

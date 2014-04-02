@@ -98,8 +98,17 @@ class IcmpPacketType(object):
 # -- == --
 # IcmpPacket
 
+# ICMP Header Format http://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+# |type(8)|code(8)|checksum(16)|id(4)|sequence(4)|dynamic structure aka data(32)|
+
 class IcmpPacket(Packet):
-    def __init__(self, type=IcmpPacketType.ICMP_ECHO, code=0, id=None, seq=0, data='12'):
+    def __init__(self, type=IcmpPacketType.ICMP_ECHO, code=0, id=None, sequence=0, data='Power Scanner ICMP'):
+        """
+        data - whatever you want to add to the icmp packet
+        id - max 32
+        sequence - max 32
+        """
+
         self.type = type
         self.code = code
 
@@ -110,29 +119,57 @@ class IcmpPacket(Packet):
         else:
             self.id = id
 
-        self.seq = seq
+        self.sequence = sequence
         self.data = data
 
     def _serialize(self):
-        idseq = struct.pack('hh', self.id, self.seq)
-        packet_without_checksum = chr(self.type) + chr(self.code) + '\000\000' + idseq + self.data
-        checksum = cksum(packet_without_checksum)
-        packet = chr(self.type) + chr(self.code) + struct.pack('h', checksum) + idseq + self.data
+        # icmp request :
+        #   |type(8)|code(8)|checksum(16)|id(4)|sequence(4)|dynamic structure aka data(variable)|
+
+        # Q - 8 bytes
+        # L - 4 bytes
+        # H - 2 bytes
+        # B - 1 byte
+
+        type = struct.pack('B', self.type)
+        code = struct.pack('B', self.code)
+        checksum_result = struct.pack('H', 0)
+        id = struct.pack('H', self.id)
+        sequence = struct.pack('H', self.sequence)
+
+        packet_without_checksum = type + code + checksum_result + id + sequence + self.data
+        checksum_result = cksum(packet_without_checksum)
+        checksum_result = struct.pack('H', checksum_result)
+        packet = type + code + checksum_result + id + sequence + self.data
 
         return packet
 
     def _deserialize(self, raw_packet_bytes):
         self.type = ord(raw_packet_bytes[0])
         self.code = ord(raw_packet_bytes[1])
-        elts = struct.unpack('hhh', raw_packet_bytes[2:8])
+        elts = struct.unpack('HHH', raw_packet_bytes[2:8])
         cksum = 0
-        [cksum, self.id, self.seq] = map(lambda x: x & 0xffff, elts)
+        [cksum, self.id, self.sequence] = map(lambda x: x & 0xffff, elts)
         self.data = raw_packet_bytes[8:]
 
 
 # -- == -- =-- == -- =-- == -- =-- == -- =-- == -- =
 # Helper methods taken from an open source 'pinger'
 # written by Jeremy Hylton, jeremy@cnri.reston.va.us
+
+
+def carry_around_add(a, b):
+    c = a + b
+    return (c & 0xffff) + (c >> 16)
+
+
+def checksum(msg):
+    s = 0
+    for i in range(0, len(msg), 2):
+        w = ord(msg[i]) + (ord(msg[i + 1]) << 8)
+        s = carry_around_add(s, w)
+    return ~s & 0xffff
+
 
 def cksum(s):
     if len(s) & 1:

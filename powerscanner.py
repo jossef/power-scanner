@@ -19,6 +19,7 @@ from multiprocessing.pool import ThreadPool
 from powscan_common.banner_grabber import BannerGrabber
 
 from powscan_common.banner_helper import *
+from powscan_common.network_mapper import IcmpNetworkMapper
 from powscan_common.port_helper import get_port_info
 from powscan_common.port_scanner import FullTcpScanner
 from powscan_common.networking_helper import *
@@ -175,10 +176,10 @@ def enumerate_interfaces_test():
         ip = item[1]
         mac = item[3]
 
-        if 'lo' in name:
+        if 'lo' in name or ip == '127.0.0.1':
             continue
 
-        network_addresses = get_network_addresses(ip, mac)
+        network_addresses = get_network_endpoint_addresses(ip, mac)
         for network_address in network_addresses:
             print network_address
 
@@ -188,10 +189,19 @@ def enumerate_interfaces_test():
         print
 
 
+def network_mapper_test():
+    mapper = IcmpNetworkMapper()
+    items = mapper.map()
+
+    for item in items:
+        print item
+
+
 def main():
     #print_banners_test()
     #powa()
-    enumerate_interfaces_test()
+    #enumerate_interfaces_test()
+    network_mapper_test()
 
     return
 
