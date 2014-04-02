@@ -21,103 +21,10 @@ from powscan_common.banner_grabber import BannerGrabber
 from powscan_common.banner_helper import *
 from powscan_common.port_helper import get_port_info
 from powscan_common.port_scanner import FullTcpScanner
-from powscan_common.socket_helper import *
+from powscan_common.networking_helper import *
 from prettytable import PrettyTable
 
 __author__ = 'jossef'
-
-#
-# def smtp_banner_grabber(address, port = 25):
-#     sock = None
-#     try:
-#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#         socket_connect(sock, address, port)
-#         banner = socket_recieve(sock)
-#
-#         operating_system = None
-#         server = None
-#
-#         # Lets scrape for any hints
-#         banner_lines = banner.split('\n')
-#         banner_lines = [item.strip() for item in banner_lines]
-#
-#         for banner_line in banner_lines:
-#             server, operating_system = get_smtp_banner_info(banner_line)
-#             if server or operating_system:
-#                 break
-#
-#         return server, operating_system, port
-#
-#
-#     except Exception as ex:
-#         return None, None, port
-#
-#     finally:
-#         if sock:
-#             sock.close()
-#
-# def ftp_banner_grabber(address, port = 21):
-#     sock = None
-#     try:
-#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#         socket_connect(sock, address, port)
-#         banner = socket_recieve(sock)
-#
-#         operating_system = None
-#         server = None
-#
-#         # Lets scrape for any hints
-#         banner_lines = banner.split('\n')
-#         banner_lines = [item.strip() for item in banner_lines]
-#
-#         for banner_line in banner_lines:
-#             server, operating_system = get_ftp_banner_info(banner_line)
-#             if server or operating_system:
-#                 break
-#
-#         return server, operating_system, port
-#
-#
-#     except Exception as ex:
-#         return None, None, port
-#
-#     finally:
-#         if sock:
-#             sock.close()
-#
-#
-# def http_banner_grabber(address, port = 80):
-#     sock = None
-#     try:
-#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#         socket_connect(sock, address, port)
-#
-#         sock.send("HEAD / HTTP/1.1\r\nHost: %s\r\n\r\n" % address)
-#         banner = socket_recieve(sock)
-#
-#         operating_system = None
-#         server = None
-#
-#         # Lets Search for the 'Server: ' instance
-#         banner_lines = banner.split('\n')
-#         banner_lines = [item.strip() for item in banner_lines]
-#
-#         server_prefix = 'server:'
-#         server_line = (item for item in banner_lines if item.lower().startswith(server_prefix)).next()
-#         if server_line:
-#             server_line = server_line[len(server_prefix):].strip()
-#
-#             server, operating_system = get_http_banner_info(server_line)
-#
-#         return server, operating_system, port
-#
-#     except Exception as ex:
-#         return None, None, port
-#
-#     finally:
-#         if sock:
-#             sock.close()
-
 
 
 def parse_command_line_args():
@@ -252,31 +159,41 @@ def print_banners_test():
 
 
 def powa():
-    scanner = FullTcpScanner('8.8.8.8', sleep_in_milliseconds=10)
+    scanner = FullTcpScanner('10.0.2.2', sleep_in_milliseconds=0)
     scan_results = scanner.scan()
 
     for item in scan_results:
         print item
 
-def main():
-    print_banners_test()
-    #powa()
 
-    return
-    p = CmdlinePinger('8.8.8.8', 1)
-    p.ping()
-    summary = p.get_summary()
-
-    print summary
-
-    return
+def enumerate_interfaces_test():
     interfaces = get_interfaces()
 
-    for interface in interfaces:
-        ar = ArpRequest('212.179.154.222', interface['name'], interface['ip'])
-        print ar.request()
+    for item in interfaces:
 
-    return 0
+        name = item[0]
+        ip = item[1]
+        mac = item[3]
+
+        if 'lo' in name:
+            continue
+
+        network_addresses = get_network_addresses(ip, mac)
+        for network_address in network_addresses:
+            print network_address
+
+        print item
+
+        print '-----------------------'
+        print
+
+
+def main():
+    #print_banners_test()
+    #powa()
+    enumerate_interfaces_test()
+
+    return
 
 
 if __name__ == "__main__":

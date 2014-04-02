@@ -99,14 +99,14 @@ class IcmpPacketType(object):
 # IcmpPacket
 
 class IcmpPacket(Packet):
-    def __init__(self, type=IcmpPacketType.ICMP_ECHO, code=0, id=None, seq=0, data=''):
+    def __init__(self, type=IcmpPacketType.ICMP_ECHO, code=0, id=None, seq=0, data='12'):
         self.type = type
         self.code = code
 
         # id not initialized
         if not id:
             # Treat the hosting process's pid as id
-            id = os.getpid()
+            self.id = os.getpid()
         else:
             self.id = id
 

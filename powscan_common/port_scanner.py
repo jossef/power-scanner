@@ -5,7 +5,7 @@ import abc
 import socket
 import logging
 
-from socket_helper import *
+from networking_helper import *
 from banner_helper import *
 import time
 
@@ -21,9 +21,13 @@ class PortScanner(object):
 
     def scan(self):
         for port in self.ports:
-            yield self._scan(port)
+            try:
+                yield self._scan(port)
+            except Exception as ex:
+                logging.debug(ex)
 
-            # Sleep for each iteration
+            # Sleep for each iteration (as instructed)
+            # We are dividing by 1000 because time.sleep gets expect time in seconds
             time.sleep(self.sleep_in_milliseconds / 1000.0)
 
     @abc.abstractmethod
@@ -41,7 +45,7 @@ class FullTcpScanner(PortScanner):
 
         """
         icmp_packet = IcmpPacket()
-        socket_transmit(icmp_packet, self.address,)
+        socket_transmit(icmp_packet, self.address)
 
         return 'scanning tcp {0}'.format(port)
 

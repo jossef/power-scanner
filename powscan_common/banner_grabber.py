@@ -3,7 +3,7 @@ import abc
 import socket
 import logging
 
-from socket_helper import *
+from networking_helper import *
 from banner_helper import *
 
 
