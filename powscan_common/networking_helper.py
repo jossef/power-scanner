@@ -8,6 +8,10 @@ import array
 __author__ = 'Jossef Harush'
 
 
+def get_operating_system_by_ttl(ttl):
+    pass
+
+
 # TODO - default timeout
 def socket_connect(sock, address, port, timeout=5):
     sock.settimeout(timeout)
@@ -29,26 +33,25 @@ def socket_receive(sock, timeout=5, buffer_size=4096):
 
 
 # TODO - default timeout
-def socket_transmit(packet, address, timeout=5):
+def socket_transmit(sock, data, address, port, timeout=5):
     """
     packet - instance of Packet class defined in packet_helper
+
+    * raises an exception if timed out
     """
 
-    # TODO check what happens if illegal address
-    destination = (socket.gethostbyname(address), 0)
+    destination = (address, port)
+    sock.sendto(data, destination)
+    response = socket_receive(sock, timeout=timeout)
+    return response
 
-    # Definition of RAW socket
-    # TODO - receive a socket
-    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-    try:
-        packet_bytes = packet.serialize()
-        sock.sendto(packet_bytes, destination)
-        data = socket_receive(sock, timeout=timeout)
-        return data
-    # Release resources
-    finally:
-        if sock:
-            sock.close()
+
+def create_raw_socket():
+    return socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+
+
+def create_icmp_socket():
+    return socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
 
 
 def convert_v4_address_bits_to_string(ip_address_bits):

@@ -43,7 +43,7 @@ class NetworkMapper(object):
             if endpoint_address in self.skip_ip_addresses:
                 continue
 
-            result = self._map(endpoint_address)
+            result = self._map(interface_ip_address, endpoint_address)
 
             # If the result is None - don't yield by default
             # If self.include_empty_responses is True, always include
@@ -92,21 +92,39 @@ class NetworkMapper(object):
 
 
     @abc.abstractmethod
-    def _map(self, ip_address):
+    def _map(self, interface_ip_address, destination_ip_address):
         pass
 
 
 class IcmpNetworkMapper(NetworkMapper):
-    def _map(self, ip_address):
+    def _map(self, interface_ip_address, destination_ip_address):
 
+        sock = None
         try:
-            icmp_packet = IcmpPacket()
-            response_bytes = socket_transmit(icmp_packet, ip_address)
-            icmp_packet.deserialize(response_bytes)
+            icmp_packet = IcmpPacket(type=IcmpType.ireq)
+            icmp_data = icmp_packet.serialize()
 
-            return icmp_packet
+            ip_packet = IpPacket(source_ip=interface_ip_address,
+                                 destination_ip=destination_ip_address,
+                                 protocol=IpProtocol.icmp,
+                                 data=icmp_data)
+
+            ip_data = ip_packet.serialize()
+
+            sock = create_icmp_socket()
+            port = 0
+
+            response_bytes = socket_transmit(sock, ip_data, destination_ip_address, port )
+            ip_packet.deserialize(response_bytes)
+
+            return ip_packet
         # Exception may be thrown if timeout or communication error
         # We ignoring it purposely and logging it
         except Exception as ex:
             logging.debug(ex)
+
+            # Close the socket
+            if sock:
+                sock.close()
+
             return None

@@ -94,18 +94,6 @@ class Packet:
             self.dst = None
             self.data = ''
 
-    def __repr__(self):
-        begin = "<IPv%d id=%d proto=%d src=%s dst=%s datalen=%d " % \
-                (self.v, self.id, self.p, self.src, self.dst,
-                 self.len - self.hl * 4)
-        if len(self.data) == 0:
-            rep = begin + "\'\'>"
-        elif len(self.data) < 10:
-            rep = begin + "%s>" % repr(self.data)
-        else:
-            rep = begin + "%s>" % repr(self.data[:10] + '...')
-        return rep
-
     def assemble(self, cksum=0):
         "Get a packet suitable for sending over an IP socket."
         # make sure all the data is ready
