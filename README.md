@@ -39,6 +39,7 @@ run python powscan.py
     | 77.232.72.241 |  80  |       http       |  full_tcp |   apache 2.2.8   |        |
     +---------------+------+------------------+-----------+------------------+--------+
 
+![image](https://cloud.githubusercontent.com/assets/1287098/2623831/26cc489a-bd0a-11e3-82b5-135eb75e5aa8.png)
 
 
 ### Example 2 - ack scan:
@@ -63,6 +64,8 @@ run python powscan.py
     | 77.232.72.241 |  20  |                   ftp data transfer                   |    ack    |                  |        |
     +---------------+------+-------------------------------------------------------+-----------+------------------+--------+
 
+![image](https://cloud.githubusercontent.com/assets/1287098/2623832/4deefbde-bd0a-11e3-94f5-fc0af7208cdf.png)
+
 
 ### Example 3 - udp scan:
 
@@ -86,12 +89,37 @@ run python powscan.py
     | 77.232.72.241 |  20  |                   ftp data transfer                   |    udp    |                  |        |
     +---------------+------+-------------------------------------------------------+-----------+------------------+--------+
 
+
+### Example 4 - stealth scan:
+    
+    root@jossef-VirtualBox:/home/jossef/Desktop/workspace# python powscan.py -iface_ip 10.0.2.15 -target_ip 77.232.72.241 -interval 100 -timeout 1000 -ports 80-90 20 -scan_type stealth -banner
+    scanning ... (please be patient)
+    
+    +---------------+------+------------------+-----------+------------------+--------+
+    |     Target    | Port | Port Description | Scan Type | Operating System | Server |
+    +---------------+------+------------------+-----------+------------------+--------+
+    | 77.232.72.241 |  80  |       http       |  stealth  |   apache 2.2.8   |        |
+    +---------------+------+------------------+-----------+------------------+--------+
+
+
 ![image](https://cloud.githubusercontent.com/assets/1287098/2623812/2d03d1b6-bd09-11e3-8756-b39c14a67432.png)
 
 
-### Example 4 - udp scan:
+### Example 5 - fin scan:
+
+    root@jossef-VirtualBox:/home/jossef/Desktop/workspace# python powscan.py -iface_ip 10.0.2.15 -target_ip 77.232.72.241 -interval 100 -timeout 1000 -ports 80-90 20 -scan_type fin -banner
+    scanning ... (please be patient)
+    
+    +--------+------+------------------+-----------+------------------+--------+
+    | Target | Port | Port Description | Scan Type | Operating System | Server |
+    +--------+------+------------------+-----------+------------------+--------+
+    +--------+------+------------------+-----------+------------------+--------+
+    
 
 
+![image](https://cloud.githubusercontent.com/assets/1287098/2623822/c0eb1790-bd09-11e3-8577-b0377c952b1b.png)
+
+    
 Network mapper - powmap.py
 =============
 
