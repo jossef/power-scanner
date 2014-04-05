@@ -90,6 +90,8 @@ run python powscan.py
     +---------------+------+-------------------------------------------------------+-----------+------------------+--------+
 
 
+![image](https://cloud.githubusercontent.com/assets/1287098/2623836/8ffa9588-bd0a-11e3-984c-a071f72eec41.png)
+
 ### Example 4 - stealth scan:
     
     root@jossef-VirtualBox:/home/jossef/Desktop/workspace# python powscan.py -iface_ip 10.0.2.15 -target_ip 77.232.72.241 -interval 100 -timeout 1000 -ports 80-90 20 -scan_type stealth -banner
@@ -132,4 +134,15 @@ Network mapper - powmap.py
       -iface_ip IP   network ip
       -timeout TIME  timeout on socket connections (milliseconds)
 
+### example - mapping a network
+
+    python powmap.py -iface_ip 10.0.2.15 -timeout 1000
+    mapping ... (please be patient)
+    
+    10.0.2.2
+    10.0.2.3
+    10.0.2.4
+
+
+![image](https://cloud.githubusercontent.com/assets/1287098/2623844/8e5de300-bd0b-11e3-9b08-6d0c8e6c6c2c.png)
 
