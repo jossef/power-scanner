@@ -1,7 +1,9 @@
-power-scanner
+Power Scanner
 =============
 
 Colman's Cyber Security course exercise 
+
+Written by Netanel Hinberger and Jossef Harush with the assistance of Google and stackoverflow
 
 Port scanner - powscan.py
 =============
