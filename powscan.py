@@ -15,7 +15,6 @@ import fcntl
 import struct
 import array
 
-from ping import *
 from multiprocessing.pool import ThreadPool
 from powscan_common.banner_grabber import *
 from powscan_common.network_mapper import *

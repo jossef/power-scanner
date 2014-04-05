@@ -1,15 +1,12 @@
-from multiprocessing.pool import ThreadPool
-
 __author__ = 'Jossef Harush'
+
 from powscan_common.packet_helper import *
 import abc
 import socket
 import logging
-
 from networking_helper import *
 from banner_helper import *
 import time
-import subprocess
 
 
 class PortScanner(object):
