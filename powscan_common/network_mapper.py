@@ -9,9 +9,10 @@ __author__ = 'Jossef Harush'
 class NetworkMapper(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, include_empty_responses=False, skip_ip_addresses=[]):
+    def __init__(self, include_empty_responses=False, skip_ip_addresses=[], timeout=0.5):
         self.include_empty_responses = include_empty_responses
         self.skip_ip_addresses = skip_ip_addresses
+        self.timeout = timeout
 
     def _map_all_interfaces(self, include_loopback=False):
         # Map all interface (except loopback)
@@ -102,35 +103,31 @@ class IcmpNetworkMapper(NetworkMapper):
         sock = None
         try:
             icmp_packet = IcmpPacket(
+
                 type=IcmpType.echo,
                 # id=os.getpid() & 0xFFFF
             )
 
             icmp_data = icmp_packet.serialize()
 
-            ip_packet = IpPacket(source_ip=interface_ip_address,
-                                 # identification=os.getpid(),
-                                 destination_ip=destination_ip_address,
-                                 protocol=IpProtocol.icmp,
-                                 payload=icmp_data,
-            )
-
-            ip_data = ip_packet.serialize()
 
             sock = create_icmp_socket()
+
             port = 0
 
+
+            timeout_in_seconds = self.timeout / 1000
 
             response, addr = socket_send_receive(sock,
                                                  icmp_data,
                                                  destination_ip_address,
                                                  port,
-                                                 timeout_in_seconds=10)
+                                                 timeout_in_seconds=timeout_in_seconds)
 
+            ip_packet = IpPacket()
             ip_packet.deserialize(response)
-            icmp_packet.deserialize(ip_packet.payload)
 
-            return ip_packet
+            return ip_packet.source_ip
         # Exception may be thrown if timeout or communication error
         # We ignoring it purposely and logging it
         except Exception as ex:

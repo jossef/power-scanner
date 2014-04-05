@@ -50,14 +50,12 @@ class BannerGrabber(object):
             # Parse the bustard
             server, operating_system = self._parse_banner(banner)
 
-            return server, operating_system, self.port
+            return server, operating_system
 
         except Exception as ex:
             # Log exception in debug mode
             logging.debug(ex)
-
-
-            return None, None, self.port
+            return None, None
 
         finally:
             if sock:

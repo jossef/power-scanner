@@ -29,18 +29,13 @@ __author__ = 'Jossef Harush'
 def parse_command_line_args():
     parser = argparse.ArgumentParser(description='Powscan - Cyber security cource TASK 2 Building Scanning tool')
 
-    parser.add_argument('-ip', dest='ip_address', metavar='IP', help='target ip address (v4 only)', required=True)
-    parser.add_argument('-t', dest='time_interval', metavar='TIME', type=int,
-                        help='time interval between each scan (milliseconds)', required=True)
-    parser.add_argument('-pt', dest='protocol_type', metavar='PROTOCOL', choices=['UDP', 'TCP', 'ICMP'],
-                        help='protocol type [UDP/TCP/ICMP]', required=True)
-    parser.add_argument('-p', dest='ports', metavar='PORT', nargs='+',
-                        help='ports can be range : -p 22-54 \ncan be single port : -p 80 \ncan be combination (space separated) : -p 80 43 23 125]',
-                        required=True)
-    parser.add_argument('-type', dest='scan_type', metavar='TYPE', choices=['full', 'stealth', 'fin', 'ack'],
-                        help='scan type [full,stealth,fin,ack]', required=True)
-    parser.add_argument('-b', dest='grab_banner', action='store_true',
-                        help='bannerGrabber status (Should work only for TCP)')
+    parser.add_argument('-iface_ip', dest='interface_ip_address', metavar='IP', help='sending interface ip address (v4 only)', required=True)
+    parser.add_argument('-target_ip', dest='target_ip_address', metavar='IP', help='target ip address (v4 only)', required=True)
+    parser.add_argument('-interval', dest='delay', metavar='TIME', type=int, help='time interval between each scan (milliseconds)', required=True)
+    parser.add_argument('-timeout', dest='timeout', metavar='TIME', type=int, help='timeout on socket connections (milliseconds)', required=True)
+    parser.add_argument('-ports', dest='ports', metavar='PORT', nargs='+', help='ports can be range : -p 22-54 \ncan be single port : -p 80 \ncan be combination (space separated) : -p 80 43 23 125]', required=True)
+    parser.add_argument('-scan_type', dest='scan_type', metavar='TYPE', choices=['full_tcp', 'stealth', 'fin', 'ack', 'udp'], help='scan type [full,stealth,fin,ack]', required=True)
+    parser.add_argument('-banner', dest='grab_banner', action='store_true', help='bannerGrabber status (Should work only for TCP)')
 
     args = parser.parse_args()
 
@@ -51,14 +46,20 @@ def parse_command_line_args():
         "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
 
     grab_banner = args.grab_banner
-    ip_address = args.ip_address
-    if not ip_address_regex.match(ip_address):
-        print 'Invalid ip address: {0}'.format(ip_address)
+    target_ip_address = args.target_ip_address
+    if not ip_address_regex.match(target_ip_address):
+        print 'Invalid ip address: {0}'.format(target_ip_address)
         parser.print_help()
-        return 1
+        sys.exit(1)
 
-    time_interval = args.time_interval
-    protocol_type = args.protocol_type
+    interface_ip_address = args.interface_ip_address
+    if not ip_address_regex.match(interface_ip_address):
+        print 'Invalid interface ip address: {0}'.format(interface_ip_address)
+        parser.print_help()
+        sys.exit(1)
+
+    delay = args.delay
+    timeout = args.timeout
     scan_type = args.scan_type
     ports = []
 
@@ -92,125 +93,16 @@ def parse_command_line_args():
         # Remove duplicates
         ports = list(set(ports))
 
-        print ports
-
     except Exception as ex:
-        print 'Arguments parse error: {0}'.format(ex)
+        print 'port parse error: {0}\nthe correct format is PORT PORT PORT1-PORT2 ... '.format(ex)
         parser.print_help()
-        return 1
+        sys.exit(1)
 
-        # --== ==-- --== ==--
-
-
-def pool_worker(address, port):
-    grabber = BannerGrabber.create(address, port)
-    return grabber.get_banner()
-
-
-banner_grabbing_thread_pool = ThreadPool(processes=10)
-banner_grabbing_async_results = []
-
-
-def print_banners_test():
-    ftps = ['ftp.freshrpms.net', 'ftp.heanet.ie', 'ftp.rediris.es', 'ftp.tu-chemnitz.de', 'ftp.es.kde.org',
-            'ftp.esat.net', 'ftp.leo.org', 'ftp.mirror.nl', 'ftp.it.freebsd.org', 'ftp.gwdg.de', 'ftp.lublin.pl',
-            'ftp.rhnet. is', 'ftp.de.netbsd.org', 'ftp.iij.ad.jp', 'ftp.bv.kernel.org', 'ftp.ussg.iu.edu',
-            'ftp.aist-nara.ac.jp', 'ftp.uni-bayreuth.de', 'ftp.ch.freebsd.org', 'ftp.servage.com',
-            'ftp.swfwmd.state.fl.us', 'ftp.mozilla.org']
-    #ftps =[]
-
-    for ftp in ftps:
-        async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (ftp, 21))
-        banner_grabbing_async_results.append(async_result)
-
-    smtps = ['smtp.gmail.com', 'smtp.live.com', 'smtp.mail.yahoo.com', 'smtp.mail.yahoo.co.uk', 'smtp.o2.ie',
-             'smtp.att.yahoo.com', 'smtp.ntlworld.com', 'smtp.orange.net', 'smtp.wanadoo.co.uk', 'smtp.live.com',
-             'smtp.1and1.com', 'outgoing.verizon.net', 'smtp.comcast.net', 'smtp.mail.com']
-
-    for smtp in smtps:
-        async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (smtp, 25))
-        banner_grabbing_async_results.append(async_result)
-
-    https = ['www.jossef.com', 'www.gmail.com', 'www.ynet.co.il', 'www.colman.ac.il']
-    #https =[]
-    for http in https:
-        async_result = banner_grabbing_thread_pool.apply_async(pool_worker, (http, 80))
-        banner_grabbing_async_results.append(async_result)
-
-
-    # ------- === ------
-    # Printing like a boss
-
-    x = PrettyTable(["Server", "Operating System", "Port"])
-    x.align["Server"] = "l"
-    x.align["Operating System"] = "l"
-    x.align["Port"] = "l"
-
-    for banner_grabbing_async_result in banner_grabbing_async_results:
-        server, operating_system, port = banner_grabbing_async_result.get()
-        if not server and not operating_system:
-            continue
-
-        x.add_row([server, operating_system, get_port_info(port)])
-
-    print x
-
-
-known_udp_ports = [
-    15,
-    23,
-    53,
-    69,
-    137,
-    138,
-    161]
-
-
-def powa():
-    scanner = FinScanner(destination_ip='77.232.72.241',
-                         source_ip='10.0.2.15',
-                         sleep_in_milliseconds=100,
-                         timeout_im_milliseconds=100)
-
-    scan_results = scanner.scan()
-
-    for item in scan_results:
-        print item
-
-
-def enumerate_interfaces_test():
-    interfaces = get_interfaces()
-
-    for item in interfaces:
-
-        name = item[0]
-        ip = item[1]
-        mac = item[3]
-
-        if 'lo' in name or ip == '127.0.0.1':
-            continue
-
-        network_addresses = get_network_endpoint_addresses(ip, mac)
-        for network_address in network_addresses:
-            print network_address
-
-        print item
-
-        print '-----------------------'
-        print
-
-
-def network_mapper_test():
-    mapper = IcmpNetworkMapper()
-    items = mapper.map()
-
-    for item in items:
-        print item
+    return grab_banner, delay, timeout, target_ip_address, interface_ip_address, scan_type, ports
 
 
 def main():
-
-    # Verify root
+    # Verify user root
     if not os.geteuid() == 0:
         print "root required! please use 'sudo' to run as root"
         return 1
@@ -220,14 +112,60 @@ def main():
         print "not supported on windows. linux only"
         return 1
 
+    grab_banner, delay, timeout, target_ip_address, interface_ip_address, scan_type, ports = parse_command_line_args()
 
-    #print_banners_test()
-    #enumerate_interfaces_test()
-    #network_mapper_test()
-    powa()
-    #send_syn_test()
+    # Create the scanner
 
-    return
+    scanner = PortScanner.create(
+        type=scan_type,
+        source_ip=interface_ip_address,
+        destination_ip=target_ip_address,
+        ports=ports,
+        sleep_in_milliseconds=delay,
+        timeout_im_milliseconds=timeout)
+
+
+    # ------- === ------
+    # Printing in a table
+
+    table_headers = None
+    if grab_banner:
+        table_headers = ["Target", "Port", "Port Description", "Scan Type", "Operating System", "Server"]
+    else:
+        table_headers = ["Target", "Port", "Port Description", "Scan Type"]
+
+    x = PrettyTable(table_headers)
+
+    print 'scanning ... (please be patient)'
+    print
+
+    opened_ports = scanner.scan()
+    for opened_port in opened_ports:
+
+        row = []
+
+        if grab_banner:
+
+            operating_system = None
+            server = None
+            try:
+                banner_grabber = BannerGrabber.create(target_ip_address, opened_port)
+                operating_system, server = banner_grabber.get_banner()
+            except:
+                pass
+
+            if not operating_system:
+                operating_system = ''
+
+            if not server:
+                server = ''
+
+            row = [target_ip_address, str(opened_port), get_port_info(opened_port), scan_type, operating_system, server]
+        else:
+            row = [target_ip_address, str(opened_port), get_port_info(opened_port), scan_type]
+        x.add_row(row)
+
+    print x
 
 
 if __name__ == "__main__":

@@ -12,7 +12,53 @@ import time
 class PortScanner(object):
     __metaclass__ = abc.ABCMeta
 
-    # TODO change default sleep value
+    @staticmethod
+    def create(type,
+               source_ip,
+               destination_ip,
+               sleep_in_milliseconds,
+               timeout_im_milliseconds,
+               ports):
+        """
+         Factory method for inheritors
+        """
+        if type == 'full_tcp':
+            return FullTcpScanner(source_ip=source_ip,
+                                  ports=ports,
+                                  timeout_im_milliseconds=timeout_im_milliseconds,
+                                  destination_ip=destination_ip,
+                                  sleep_in_milliseconds=sleep_in_milliseconds)
+
+        if type == 'udp':
+            return UdpScanner(source_ip=source_ip,
+                              ports=ports,
+                              timeout_im_milliseconds=timeout_im_milliseconds,
+                              destination_ip=destination_ip,
+                              sleep_in_milliseconds=sleep_in_milliseconds)
+
+        if type == 'ack':
+            return AckScanner(source_ip=source_ip,
+                              ports=ports,
+                              timeout_im_milliseconds=timeout_im_milliseconds,
+                              destination_ip=destination_ip,
+                              sleep_in_milliseconds=sleep_in_milliseconds)
+
+        if type == 'fin':
+            return FinScanner(source_ip=source_ip,
+                              ports=ports,
+                              timeout_im_milliseconds=timeout_im_milliseconds,
+                              destination_ip=destination_ip,
+                              sleep_in_milliseconds=sleep_in_milliseconds)
+
+        if type == 'stealth':
+            return StealthScanner(source_ip=source_ip,
+                                  ports=ports,
+                                  timeout_im_milliseconds=timeout_im_milliseconds,
+                                  destination_ip=destination_ip,
+                                  sleep_in_milliseconds=sleep_in_milliseconds)
+
+        raise Exception('Given type - {0} is not supported with this factory method'.format(type))
+
     def __init__(self,
                  destination_ip=None,
                  ports=range(1, 65535),
@@ -73,7 +119,9 @@ class FullTcpScanner(PortScanner):
 
             # Because i don't want to modify iptables, i continued with socket.connect() .
 
+
             sock = socket.socket()
+
             timeout_in_seconds = self.timeout_im_milliseconds / 1000
             sock.settimeout(timeout_in_seconds)
 
