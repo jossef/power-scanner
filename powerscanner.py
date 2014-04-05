@@ -1,4 +1,5 @@
 import argparse
+import logging
 import re
 import struct
 import uuid
@@ -16,20 +17,18 @@ import array
 
 from ping import *
 from multiprocessing.pool import ThreadPool
-from powscan_common.banner_grabber import BannerGrabber
-
-from powscan_common.banner_helper import *
-from powscan_common.network_mapper import IcmpNetworkMapper
-from powscan_common.port_helper import get_port_info
-from powscan_common.port_scanner import FullTcpScanner
+from powscan_common.banner_grabber import *
+from powscan_common.network_mapper import *
+from powscan_common.port_helper import *
+from powscan_common.port_scanner import *
 from powscan_common.networking_helper import *
 from prettytable import PrettyTable
 
-__author__ = 'jossef'
+__author__ = 'Jossef Harush'
 
 
 def parse_command_line_args():
-    parser = argparse.ArgumentParser(description='Pyscan - TASK 2 - Building Scanning tool')
+    parser = argparse.ArgumentParser(description='Powscan - Cyber security cource TASK 2 Building Scanning tool')
 
     parser.add_argument('-ip', dest='ip_address', metavar='IP', help='target ip address (v4 only)', required=True)
     parser.add_argument('-t', dest='time_interval', metavar='TIME', type=int,
@@ -104,7 +103,6 @@ def parse_command_line_args():
         # --== ==-- --== ==--
 
 
-
 def pool_worker(address, port):
     grabber = BannerGrabber.create(address, port)
     return grabber.get_banner()
@@ -159,8 +157,22 @@ def print_banners_test():
     print x
 
 
+known_udp_ports = [
+    15,
+    23,
+    53,
+    69,
+    137,
+    138,
+    161]
+
+
 def powa():
-    scanner = FullTcpScanner('10.0.2.2', sleep_in_milliseconds=0)
+    scanner = FinScanner(destination_ip='77.232.72.241',
+                         source_ip='10.0.2.15',
+                         sleep_in_milliseconds=100,
+                         timeout_im_milliseconds=100)
+
     scan_results = scanner.scan()
 
     for item in scan_results:
@@ -198,10 +210,23 @@ def network_mapper_test():
 
 
 def main():
+
+    # Verify root
+    if not os.geteuid() == 0:
+        print "root required! please use 'sudo' to run as root"
+        return 1
+
+    # Verify not windows
+    if sys.platform == 'win32':
+        print "not supported on windows. linux only"
+        return 1
+
+
     #print_banners_test()
-    #powa()
     #enumerate_interfaces_test()
-    network_mapper_test()
+    #network_mapper_test()
+    powa()
+    #send_syn_test()
 
     return
 

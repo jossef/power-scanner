@@ -12,38 +12,31 @@ def get_operating_system_by_ttl(ttl):
     pass
 
 
-# TODO - default timeout
-def socket_connect(sock, address, port, timeout=5):
+def socket_connect(sock, address, port, timeout=0.5):
     sock.settimeout(timeout)
     sock.connect((address, port))
     sock.settimeout(None)
 
 
-# TODO - default timeout
-def socket_receive(sock, timeout=5, buffer_size=4096):
-    sock.setblocking(0)
-
-    ready = select.select([sock], [], [], timeout)
-
-    if not ready[0]:
-        raise Exception('timeout')
-
-    data = sock.recv(buffer_size)
-    return data
+def socket_receive(sock, timeout_in_seconds=0.5):
+    sock.settimeout(timeout_in_seconds)
+    response = sock.recvfrom(65535)[0][0:]
+    return response
 
 
-# TODO - default timeout
-def socket_transmit(sock, data, address, port, timeout=5):
+def socket_send_receive(sock, data, address, port, timeout_in_seconds=0.5):
     """
     packet - instance of Packet class defined in packet_helper
 
     * raises an exception if timed out
     """
 
-    destination = (address, port)
-    sock.sendto(data, destination)
-    response = socket_receive(sock, timeout=timeout)
-    return response
+    sock.settimeout(timeout_in_seconds)
+
+    destination_info = (address, port)
+    sock.sendto(data, destination_info)
+    response, addr = sock.recvfrom(65535)
+    return response, addr
 
 
 def create_raw_socket():
@@ -52,6 +45,17 @@ def create_raw_socket():
 
 def create_icmp_socket():
     return socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+
+
+def create_tcp_socket():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    return sock
+
+
+def create_udp_socket():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+    return sock
 
 
 def convert_v4_address_bits_to_string(ip_address_bits):
@@ -74,6 +78,32 @@ def convert_v4_address_string_to_bits(ip_address):
     for example: '255.255.0.0' -> '11111111111111110000000000000000'
     """
     return ''.join([bin(int(octet))[2:].zfill(8) for octet in ip_address.split('.')])
+
+
+def convert_v4_address_string_to_hex(ip_address):
+    """
+    return v4 address string to bits
+
+    for example: '255.255.0.0' -> \ff\ff\00\00 (big endian)
+    """
+
+    ip_address_bits = convert_v4_address_string_to_bits(ip_address)
+    ip_address_hex = struct.pack('!I', int(ip_address_bits, 2))
+
+    return ip_address_hex
+
+
+def convert_v4_address_hex_to_string(ip_address_hex):
+    """
+    return v4 address hex to string
+
+    for example: '\ff\ff\ff\00' -> 255.255.255.0
+    """
+
+    ip_address_bits = bin(ip_address_hex)[2:].zfill(32)
+    ip_address = convert_v4_address_bits_to_string(ip_address_bits)
+
+    return ip_address
 
 
 def get_network_endpoint_addresses(ip_address, subnet_mask):

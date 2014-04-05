@@ -10,9 +10,10 @@ from banner_helper import *
 class BannerGrabber(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, address, port):
+    def __init__(self, address, port, timeout_in_milliseconds=500):
         self.address = address
         self.port = port
+        self.timeout_in_milliseconds = timeout_in_milliseconds
 
     @staticmethod
     def create(address, port):

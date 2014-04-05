@@ -101,30 +101,43 @@ class IcmpNetworkMapper(NetworkMapper):
 
         sock = None
         try:
-            icmp_packet = IcmpPacket(type=IcmpType.ireq)
+            icmp_packet = IcmpPacket(
+                type=IcmpType.echo,
+                # id=os.getpid() & 0xFFFF
+            )
+
             icmp_data = icmp_packet.serialize()
 
             ip_packet = IpPacket(source_ip=interface_ip_address,
+                                 # identification=os.getpid(),
                                  destination_ip=destination_ip_address,
                                  protocol=IpProtocol.icmp,
-                                 data=icmp_data)
+                                 payload=icmp_data,
+            )
 
             ip_data = ip_packet.serialize()
 
             sock = create_icmp_socket()
             port = 0
 
-            response_bytes = socket_transmit(sock, ip_data, destination_ip_address, port )
-            ip_packet.deserialize(response_bytes)
+
+            response, addr = socket_send_receive(sock,
+                                                 icmp_data,
+                                                 destination_ip_address,
+                                                 port,
+                                                 timeout_in_seconds=10)
+
+            ip_packet.deserialize(response)
+            icmp_packet.deserialize(ip_packet.payload)
 
             return ip_packet
         # Exception may be thrown if timeout or communication error
         # We ignoring it purposely and logging it
         except Exception as ex:
             logging.debug(ex)
+            return None
 
+        finally:
             # Close the socket
             if sock:
                 sock.close()
-
-            return None

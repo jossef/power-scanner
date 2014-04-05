@@ -1,35 +1,37 @@
+import time
+
+__author__ = 'Jossef Harush'
+
 import os
 import struct
 import array
 import struct
 from socket import htons, ntohs
-from powscan_common.networking_helper import convert_v4_address_string_to_bits
-
-__author__ = 'Jossef Harush'
+from powscan_common.networking_helper import *
 import abc
 
 
 class Packet(object):
     __metaclass__ = abc.ABCMeta
 
-    def _validate_checksum(self, raw_packet_bytes):
-        """
-            Validates the given raw_packet_bytes
-            raises ValueError if invalid checksum
-        """
-        checksum_result = self._checksum(raw_packet_bytes)
-
-        # result should be 0 if valid
-        if checksum_result != 0:
-            raise ValueError('Checksum mismatch')
-
     def _checksum(self, msg):
         s = 0
+
+        if len(msg) % 2 != 0:
+            msg += chr(0)
+
+        # loop taking 2 characters at a time
         for i in range(0, len(msg), 2):
-            w = ord(msg[i]) + (ord(msg[i + 1]) << 8)
-            c = s + w
-            s = (c & 0xffff) + (c >> 16)
-        return ~s & 0xffff
+            w = ord(msg[i]) + (ord(msg[i + 1]) << 8 )
+            s = s + w
+
+        s = (s >> 16) + (s & 0xffff);
+        s = s + (s >> 16);
+
+        #complement and mask to 4 byte short
+        s = ~s & 0xffff
+
+        return s
 
     def serialize(self):
         """
@@ -53,7 +55,6 @@ class Packet(object):
         """
             Deserializes the raw_packet_bytes into an instance of the inheritor
         """
-        self._validate_checksum(raw_packet_bytes)
         self._deserialize(raw_packet_bytes)
 
 
@@ -110,12 +111,13 @@ class IcmpType(object):
 # |type(8)|code(8)|checksum(16)|id(4)|sequence(4)|dynamic structure aka data(32)|
 
 class IcmpPacket(Packet):
-    def __init__(self, type=IcmpType.echo, code=0, id=None, sequence=0, data='Power Scanner ICMP'):
-        """
-        data - whatever you want to add to the icmp packet
-        id - max 32
-        sequence - max 32
-        """
+    def __init__(self,
+                 type=IcmpType.echo,
+                 code=0,
+                 id=None,
+                 sequence=0,
+                 checksum=0,
+                 payload='Power Scanner ICMP'):
 
         self.type = type
         self.code = code
@@ -123,12 +125,13 @@ class IcmpPacket(Packet):
         # id not initialized
         if not id:
             # Treat the hosting process's pid as id
-            self.id = os.getpid()
+            self.id = os.getpid() & 0xFFFF
         else:
             self.id = id
 
         self.sequence = sequence
-        self.data = data
+        self.checksum = checksum
+        self.payload = payload
 
     def _serialize(self):
         # icmp request :
@@ -139,18 +142,18 @@ class IcmpPacket(Packet):
         # H - 2 bytes
         # B - 1 byte
 
-        type = struct.pack('B', self.type)
-        code = struct.pack('B', self.code)
+        type = struct.pack('!B', self.type)
+        code = struct.pack('!B', self.code)
         checksum_result = struct.pack('H', 0)
-        id = struct.pack('H', self.id)
-        sequence = struct.pack('H', self.sequence)
+        id = struct.pack('!H', self.id)
+        sequence = struct.pack('!H', self.sequence)
 
         packet_without_checksum = type + \
                                   code + \
                                   checksum_result + \
                                   id + \
                                   sequence + \
-                                  self.data
+                                  self.payload
 
         checksum_result = self._checksum(packet_without_checksum)
         checksum_result = struct.pack('H', checksum_result)
@@ -160,17 +163,17 @@ class IcmpPacket(Packet):
                  checksum_result + \
                  id + \
                  sequence + \
-                 self.data
+                 self.payload
 
         return packet
 
     def _deserialize(self, raw_packet_bytes):
-        self.type = ord(raw_packet_bytes[0])
-        self.code = ord(raw_packet_bytes[1])
-        elts = struct.unpack('HHH', raw_packet_bytes[2:8])
-        cksum = 0
-        [cksum, self.id, self.sequence] = map(lambda x: x & 0xffff, elts)
-        self.data = raw_packet_bytes[8:]
+        self.type = struct.unpack('!B', raw_packet_bytes[0:1])[0]
+        self.code = struct.unpack('!B', raw_packet_bytes[1:2])[0]
+        self.checksum = struct.unpack('H', raw_packet_bytes[2:4])[0]
+        self.id = struct.unpack('!H', raw_packet_bytes[4:6])[0]
+        self.sequence = struct.unpack('!H', raw_packet_bytes[6:8])[0]
+        self.payload = raw_packet_bytes[8:]
 
 
 # --==-- ==--== ==---== --==-- ==--== ==---== --==-- ==--== ==---== --==-- ==--== ==---==
@@ -353,47 +356,37 @@ class IpTimeToLive(object):
     ios = 225
 
 
+#     0                   1                   2                   3
+#    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |Version|  IHL  |Type of Service|          Total Length         |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |         Identification        |Flags|      Fragment Offset    |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |  Time to Live |    Protocol   |         Header Checksum       |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |                       Source Address                          |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |                    Destination Address                        |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |                    Options                    |    Padding    |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
 class IpPacket(Packet):
     def __init__(self,
-
-                 # 4 bits
                  version=4,
-
-                 # 4 bits
                  header_length=5,
-
-                 # 8 bits
                  type_of_service=IpServiceType.routine,
-
-                 # 16 bits
                  total_length=None,
-
-                 # 16 bits
                  identification=0,
-
-                 # 3 bits
-                 flags=IpFlags.fragment_if_necessary,
-
-                 # 13 bits
+                 flags=0,
                  fragment_offset=0,
-
-                 # 8 bits
                  ttl=IpTimeToLive.linux,
-
-                 # 8 bits
                  protocol=IpProtocol.icmp,
-
-                 # 16 bits
                  checksum=0,
-
-                 # 32 bits
                  source_ip=0,
-
-                 # 32 bits
                  destination_ip=0,
-
-                 # variable
-                 data=''):
+                 payload=''):
         """
         IP Packet
         """
@@ -409,32 +402,28 @@ class IpPacket(Packet):
         self.checksum = checksum
         self.source_ip = source_ip
         self.destination_ip = destination_ip
-        self.data = data
+        self.payload = payload
 
     def _serialize(self):
         # IP Packet Structure http://www.networksorcery.com/enp/protocol/ip.htm
 
         # If the total_length left blank, let's calculate it
         if not self.total_length:
-            self.total_length = self.header_length * 4 + len(self.data)
+            self.total_length = self.header_length * 4 + len(self.payload)
 
-        version_and_header_length = struct.pack('B', (self.version << 4) | self.header_length)
-        type_of_service = struct.pack('B', self.type_of_service)
-        total_length = struct.pack('H', self.total_length)
-        identification = struct.pack('H', self.identification)
-        flags = struct.pack('H', (self.flags << 13) | self.fragment_offset)
-        ttl = struct.pack('B', self.ttl)
-        protocol = struct.pack('B', self.protocol)
+        version_and_header_length = struct.pack('!B', (self.version << 4) | self.header_length)
+        type_of_service = struct.pack('!B', self.type_of_service)
+        total_length = struct.pack('!H', self.total_length)
+        identification = struct.pack('!H', self.identification)
+        flags = struct.pack('!H', (self.flags << 13) | self.fragment_offset)
+        ttl = struct.pack('!B', self.ttl)
+        protocol = struct.pack('!B', self.protocol)
         checksum = struct.pack('H', 0)
 
-        source_ip_bits = convert_v4_address_string_to_bits(self.source_ip)
-        source_ip = struct.pack('L', int(source_ip_bits, 2))
+        source_ip = convert_v4_address_string_to_hex(self.source_ip)
+        destination_ip = convert_v4_address_string_to_hex(self.destination_ip)
 
-        destination_ip_bits = convert_v4_address_string_to_bits(self.destination_ip)
-        destination_ip = struct.pack('L', int(destination_ip_bits, 2))
-
-        data = self.data
-
+        # Data is not included in the checksum
         packet_without_checksum = version_and_header_length + \
                                   type_of_service + \
                                   total_length + \
@@ -444,12 +433,12 @@ class IpPacket(Packet):
                                   protocol + \
                                   checksum + \
                                   source_ip + \
-                                  destination_ip + \
-                                  data
+                                  destination_ip
 
         checksum = self._checksum(packet_without_checksum)
         checksum = struct.pack('H', checksum)
 
+        payload = self.payload
         packet = version_and_header_length + \
                  type_of_service + \
                  total_length + \
@@ -460,73 +449,278 @@ class IpPacket(Packet):
                  checksum + \
                  source_ip + \
                  destination_ip + \
-                 data
+                 payload
 
         return packet
 
     def _deserialize(self, raw_packet_bytes):
-        pass
+        version_and_header_length = struct.unpack('B', raw_packet_bytes[0:1])[0]
+
+        self.version = (version_and_header_length & int('11110000', 2)) >> 4
+        self.header_length = (version_and_header_length & int('00001111', 2))
+
+        self.type_of_service = struct.unpack('B', raw_packet_bytes[1:2])[0]
+        self.total_length = struct.unpack('!H', raw_packet_bytes[2:4])[0]
+        self.identification = struct.unpack('!H', raw_packet_bytes[4:6])[0]
+
+        flags_and_fragment_offset = struct.unpack('!H', raw_packet_bytes[6:8])[0]
+        self.flags = (flags_and_fragment_offset & int('1110000000000000', 2)) >> 13
+        self.fragment_offset = (flags_and_fragment_offset & int('0001111111111111', 2))
+
+        self.ttl = struct.unpack('B', raw_packet_bytes[8:9])[0]
+        self.protocol = struct.unpack('B', raw_packet_bytes[9:10])[0]
+
+        # Remember that checksum is not big-endian
+        self.checksum = struct.unpack('H', raw_packet_bytes[10:12])[0]
+
+        source_ip_hex = struct.unpack('!I', raw_packet_bytes[12:16])[0]
+        self.source_ip = convert_v4_address_hex_to_string(source_ip_hex)
+
+        destination_ip_hex = struct.unpack('!I', raw_packet_bytes[16:20])[0]
+        self.destination_ip = convert_v4_address_hex_to_string(destination_ip_hex)
+
+        self.payload = raw_packet_bytes[20:]
 
 
-# -- == -- =-- == -- =-- == -- =-- == -- =-- == -- =
-# Helper methods taken from an open source 'pinger'
-# written by Jeremy Hylton, jeremy@cnri.reston.va.us
+# --==-- ==--== ==---== --==-- ==--== ==---== --==-- ==--== ==---== --==-- ==--== ==---==
+# Transmission Control Protocol (TCP) :
+
+#     0                   1                   2                   3
+#    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |          Source Port          |       Destination Port        |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |                        Sequence Number                        |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |                    Acknowledgment Number                      |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |  Data |           |U|A|P|R|S|F|                               |
+#   | Offset| Reserved  |R|C|S|S|Y|I|            Window             |
+#   |       |           |G|K|H|T|N|N|                               |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |           Checksum            |         Urgent Pointer        |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |                    Options                    |    Padding    |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#   |                             data                              |
+#   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+class TcpPacket(Packet):
+    def __init__(self,
+                 source_ip=None,
+                 destination_ip=None,
+                 protocol=None,
+                 source_port=0,
+                 destination_port=0,
+                 sequence_number=123,
+                 ack_number=0,
+                 data_offset=5,
+                 fin=False,
+                 syn=False,
+                 rst=False,
+                 psh=False,
+                 ack=False,
+                 urg=False,
+                 window_size=53270,
+                 checksum=0,
+                 urgent_pointer=0,
+                 options=None,
+                 payload=''):
+        self.source_ip = source_ip
+        self.destination_ip = destination_ip
+        self.protocol = protocol
+        self.source_port = source_port
+        self.destination_port = destination_port
+        self.sequence_number = sequence_number
+        self.ack_number = ack_number
+        self.data_offset = data_offset
+        self.fin = fin
+        self.syn = syn
+        self.rst = rst
+        self.psh = psh
+        self.ack = ack
+        self.urg = urg
+        self.window_size = window_size
+        self.checksum = checksum
+        self.urgent_pointer = urgent_pointer
+        self.options = options
+        self.payload = payload
+
+    def _serialize(self):
+        # TCP Packet Structure http://en.wikipedia.org/wiki/Transmission_Control_Protocol
+
+        # Why pseudo header for checksum calculation?
+        # Read more http://www.tcpipguide.com/free/t_TCPChecksumCalculationandtheTCPPseudoHeader-2.htm
+
+        # --==-- --==--
+        # Options
+
+        if not self.options:
+            # Create the default options
+
+            self.options = \
+                struct.pack('!BBH', 2, 4, 1460) + \
+                struct.pack('!BB', 4, 2) + \
+                struct.pack('!BBII', 8, 10, 63022427, 0) + \
+                struct.pack('!B', 1) + \
+                struct.pack('!BBB', 3, 3, 7)
+
+        options_length_in_bytes = len(self.options)
+        options_length_with_padding_in_bytes = (i for i in range(0, 140, 4) if i >= options_length_in_bytes).next()
+
+        if options_length_with_padding_in_bytes > options_length_in_bytes:
+            self.options += '\000' * (options_length_with_padding_in_bytes - options_length_in_bytes)
+
+        options_length_with_padding_in_words = options_length_with_padding_in_bytes / 4
+
+        data_offset = (((self.data_offset + options_length_with_padding_in_words) << 4) | 0)
+
+        # --==-- --==--
+        # Pseudo Header
+
+        flags = self.fin + (self.syn << 1) + (self.rst << 2) + (self.psh << 3) + (self.ack << 4) + (self.urg << 5)
+
+        tcp_header = struct.pack('!HHIIBBHHH',
+                                 self.source_port,
+                                 self.destination_port,
+                                 self.sequence_number,
+                                 self.ack_number,
+                                 data_offset,
+                                 flags,
+                                 self.window_size,
+                                 0,
+                                 self.urgent_pointer) + self.options
+
+        tcp_header_length = len(tcp_header) + len(self.payload)
+
+        pseudo_header = convert_v4_address_string_to_hex(self.source_ip) + \
+                        convert_v4_address_string_to_hex(self.destination_ip) + \
+                        struct.pack('!BBH', 0, self.protocol, tcp_header_length)
+
+        packet_to_checksum = pseudo_header + tcp_header + self.payload
+
+        # --==-- --==--
+        # The actual Packet
+
+        checksum = self._checksum(packet_to_checksum)
+
+        packet_with_checksum = struct.pack('!HHIIBBH',
+                                           self.source_port,
+                                           self.destination_port,
+                                           self.sequence_number,
+                                           self.ack_number,
+                                           data_offset,
+                                           flags,
+                                           self.window_size) + \
+                               struct.pack('H', checksum) + \
+                               struct.pack('!H', self.urgent_pointer) + self.options
+
+        packet = packet_with_checksum + self.payload
+
+        return packet
+
+    def _deserialize(self, raw_packet_bytes):
+
+        self.source_port = struct.unpack('!H', raw_packet_bytes[0:2])[0]
+        self.destination_port = struct.unpack('!H', raw_packet_bytes[2:4])[0]
+        self.sequence_number = struct.unpack('!I', raw_packet_bytes[4:8])[0]
+        self.ack_number = struct.unpack('!I', raw_packet_bytes[8:12])[0]
+        self.data_offset = (struct.unpack('!B', raw_packet_bytes[12:13])[0] & int('11110000', 2)) >> 4
+
+        flags = struct.unpack('!B', raw_packet_bytes[13:14])[0]
+        self.fin = (flags & int('00000001', 2)) != 0
+        self.syn = (flags & int('00000010', 2)) != 0
+        self.rst = (flags & int('00000100', 2)) != 0
+        self.psh = (flags & int('00001000', 2)) != 0
+        self.ack = (flags & int('00010000', 2)) != 0
+        self.urg = (flags & int('00100000', 2)) != 0
+
+        self.window_size = struct.unpack('!H', raw_packet_bytes[14:16])[0]
+
+        # Checksum is little endian (no !)
+        self.checksum = struct.unpack('H', raw_packet_bytes[16:18])[0]
+
+        self.urgent_pointer = struct.unpack('!H', raw_packet_bytes[18:20])[0]
+
+        if self.data_offset > 5:
+            options_start = 20
+            options_end = self.data_offset * 4
+            self.options = raw_packet_bytes[options_start:options_end]
+            self.payload = raw_packet_bytes[options_end:]
+        else:
+            self.payload = raw_packet_bytes[20:]
 
 
-#
-#
-# def cksum(s):
-#     if len(s) & 1:
-#         s = s + '\0'
-#     words = array.array('h', s)
-#     sum = 0
-#     for word in words:
-#         sum = sum + (word & 0xffff)
-#     hi = sum >> 16
-#     lo = sum & 0xffff
-#     sum = hi + lo
-#     sum = sum + (sum >> 16)
-#     return (~sum) & 0xffff
-#
-#
-# # Should generalize from the *h2net patterns
-#
-# # This python code is suboptimal because it is based on C code where
-# # it doesn't cost much to take a raw buffer and treat a section of it
-# # as a u_short.
-#
-# def gets(s):
-#     return struct.unpack('h', s)[0] & 0xffff
-#
-#
-# def mks(h):
-#     return struct.pack('H', h)
-#
-#
-# def iph2net(s):
-#     len = htons(gets(s[2:4]))
-#     id = htons(gets(s[4:6]))
-#     off = htons(gets(s[6:8]))
-#     return s[:2] + mks(len) + mks(id) + mks(off) + s[8:]
-#
-#
-# def net2iph(s):
-#     len = ntohs(gets(s[2:4]))
-#     id = ntohs(gets(s[4:6]))
-#     off = ntohs(gets(s[6:8]))
-#     return s[:2] + mks(len) + mks(id) + mks(off) + s[8:]
-#
-#
-# def udph2net(s):
-#     sp = htons(gets(s[0:2]))
-#     dp = htons(gets(s[2:4]))
-#     len = htons(gets(s[4:6]))
-#     return mks(sp) + mks(dp) + mks(len) + s[6:]
-#
-#
-# def net2updh(s):
-#     sp = ntohs(gets(s[0:2]))
-#     dp = ntohs(gets(s[2:4]))
-#     len = ntohs(gets(s[4:6]))
-#     return mks(sp) + mks(dp) + mks(len) + s[6:]
+# --==-- ==--== ==---== --==-- ==--== ==---== --==-- ==--== ==---== --==-- ==--== ==---==
+# User Datagram Protocol (UDP) :
+
+
+#  0      7 8     15 16    23 24    31
+#  +--------+--------+--------+--------+
+#  |     Source      |   Destination   |
+#  |      Port       |      Port       |
+#  +--------+--------+--------+--------+
+#  |                 |                 |
+#  |     Length      |    Checksum     |
+#  +--------+--------+--------+--------+
+#  |
+#  |          data octets ...
+#  +---------------- ...
+
+
+class UdpPacket(Packet):
+    def __init__(self,
+                 source_ip=None,
+                 destination_ip=None,
+                 protocol=None,
+                 source_port=0,
+                 destination_port=0,
+                 length=0,
+                 checksum=0,
+                 payload=''):
+        self.source_port = source_port
+        self.destination_port = destination_port
+        self.length = length
+        self.checksum = checksum
+        self.source_ip = source_ip
+        self.destination_ip = destination_ip
+        self.protocol = protocol
+        self.payload = ''
+
+    def _serialize(self):
+
+        self.length = 8 + len(self.payload)
+
+        pseudo_header = convert_v4_address_string_to_hex(self.source_ip) + \
+                        convert_v4_address_string_to_hex(self.destination_ip) + \
+                        struct.pack('!BBH',
+                                    0,
+                                    self.protocol,
+                                    self.length)
+
+        udp_header = struct.pack('!HHHH',
+                                 self.source_port,
+                                 self.destination_port,
+                                 self.length,
+                                 0)
+
+        packet_to_checksum = pseudo_header + udp_header
+
+        self.checksum = self._checksum(packet_to_checksum)
+
+        packet = struct.pack('!HHH',
+                             self.source_port,
+                             self.destination_port,
+                             self.length) + \
+                 struct.pack('H', self.checksum) + \
+                 self.payload
+
+        return packet
+
+    def _deserialize(self, raw_packet_bytes):
+        self.source_port = struct.unpack('!H', raw_packet_bytes[0:2])[0]
+        self.destination_port = struct.unpack('!H', raw_packet_bytes[2:4])[0]
+        self.length = struct.unpack('!H', raw_packet_bytes[4:6])[0]
+        self.checksum = struct.unpack('!H', raw_packet_bytes[6:8])[0]
+
 
