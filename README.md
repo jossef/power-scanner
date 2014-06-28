@@ -1,9 +1,10 @@
 Power Scanner
 =============
 
-Colman's Cyber Security course exercise 
+Python 2.7 raw sockets port scanner
 
-Written by Netanel Hinberger and Jossef Harush with the assistance of Google and stackoverflow
+Written by Netanel Hinberger and Jossef Harush with the assistance of Google and Stackoverflow (Colman's Cyber Security course exercise)
+
 
 Port scanner - powscan.py
 =============
